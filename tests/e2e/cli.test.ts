@@ -150,6 +150,23 @@ describe('CLI e2e', () => {
     assert.equal(sarif.version, '2.1.0');
   });
 
+  it('exits 2 for a range when the config rejects every commit', async () => {
+    const configPath = join(dir, 'reject-range.config.ts');
+    await writeFile(configPath, `
+      export default {
+        extends: 'strict',
+        rules: {
+          'type-enum': ['error', { allowed: ['zzz'] }],
+        },
+      };
+    `);
+
+    const result = await runCli(['--range', 'HEAD~1..HEAD', '--config', configPath]);
+    assert.equal(result.exitCode, 2);
+    assert.equal(result.stdout, '');
+    assert.ok(result.stderr.length > 0);
+  });
+
   // ── config ──
 
   it('uses custom config with --config', async () => {

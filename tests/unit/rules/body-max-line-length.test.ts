@@ -34,6 +34,14 @@ describe('body-max-line-length rule', () => {
     assert.match(problems[0]!.message, /2 body line/);
   });
 
+  it('reports short violating lines without truncation marker', () => {
+    // A line of 17 chars against max 10 violates but stays under the
+    // 30-char excerpt threshold — exercises the non-truncated excerpt path.
+    const problems = run('feat: add\n\nthis line is long', 10);
+    assert.equal(problems.length, 1);
+    assert.match(problems[0]!.message, /exceed the maximum of 10/);
+  });
+
   describe('validateOptions', () => {
     it('returns empty for valid options', () => {
       assert.equal(bodyMaxLineLengthRule.validateOptions!({ max: 100 }).length, 0);

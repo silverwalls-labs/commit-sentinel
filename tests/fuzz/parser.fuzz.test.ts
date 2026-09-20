@@ -89,6 +89,19 @@ describe('parseCommit fuzz', () => {
     );
   });
 
+  it('body never starts or ends with a blank line', () => {
+    fc.assert(
+      fc.property(fc.string(), (input: string) => {
+        const { body } = parseCommit(input);
+        if (body === null) return;
+        const lines = body.split('\n');
+        assert.notEqual(lines[0]!.trim(), '');
+        assert.notEqual(lines[lines.length - 1]!.trim(), '');
+      }),
+      { numRuns: 1000 },
+    );
+  });
+
   it('handles messages with multiple blank lines without crashing', () => {
     const linesArb = fc.array(
       fc.oneof(fc.constant(''), fc.stringMatching(/^[a-z ]{1,40}$/)),
