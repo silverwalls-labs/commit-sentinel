@@ -1,0 +1,112 @@
+name: Publish Package
+
+on:
+  release:
+    types: [published]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install Dependencies
+        run: |
+          npm ci --prefer-offline
+
+      - name: OSV Scan
+        continue-on-error: ${{ vars.ALLOW_OSV_FAILURE == 'true' }}
+        env:
+          OSV_VERSION: 2.5.0
+          OSV_SHA256: fe152e1a546af223e6c557cc3111a8bb3e5dc02fcbf7dbe95d26567c0f0041f2
+        run: |
+          set -euo pipefail
+          curl -sSLo osv-scanner "https://github.com/google/osv-scanner/releases/download/v${OSV_VERSION}/osv-scanner_linux_arm64"
+          echo "${OSV_SHA256}  osv-scanner" | sha256sum -c -
+          chmod +x osv-scanner
+          ./osv-scanner --lockfile=package-lock.json
+
+      - name: Audit
+        continue-on-error: ${{ vars.ALLOW_AUDIT_FAILURE == 'true' }}
+        run: |
+          npm audit --audit-level=low
+
+      - name: Version Consistency
+        run: |
+          node scripts/check-version.ts
+
+      - name: Lint
+        run: |
+          npm run lint
+
+      - name: Typecheck
+        run: |
+          npm run typecheck
+
+      - name: Build
+        run: |
+          npm run build
+
+      - name: Test
+        run: |
+          npm test
+
+      - name: Publish Dry Run
+        run: |
+          npm pack --dry-run
+
+  publish:
+    name: Publish to npm
+    needs: quality-gate
+    runs-on: ubuntu-24.04-arm
+    environment: prod
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - name: Install Dependencies
+        run: |
+          npm ci --prefer-offline
+
+      - name: Set version from release tag
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          npm version "$VERSION" --no-git-tag-version
+          sed -i "s/VERSION = '[^']*'/VERSION = '$VERSION'/" src/version.ts
+          node scripts/check-version.ts
+
+      - name: Build
+        run: |
+          npm run build
+
+      - name: Publish
+        run: |
+          npm publish --ignore-scripts --access public --provenance
