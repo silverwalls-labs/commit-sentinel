@@ -1,15 +1,15 @@
 {
-  "name": "@sheplu/commit-sentinel",
+  "name": "@silverwalls-labs/commit-sentinel",
   "version": "0.1.0",
   "description": "Validate git commit message formats",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sheplu/commit-sentinel.git"
+    "url": "git+https://github.com/silverwalls-labs/commit-sentinel.git"
   },
-  "homepage": "https://github.com/sheplu/commit-sentinel#readme",
+  "homepage": "https://github.com/silverwalls-labs/commit-sentinel#readme",
   "bugs": {
-    "url": "https://github.com/sheplu/commit-sentinel/issues"
+    "url": "https://github.com/silverwalls-labs/commit-sentinel/issues"
   },
   "type": "module",
   "bin": {

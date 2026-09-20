@@ -4,7 +4,7 @@
   "out": "docs",
   "tsconfig": "tsconfig.json",
   "readme": "README.md",
-  "name": "@sheplu/commit-sentinel",
+  "name": "@silverwalls-labs/commit-sentinel",
   "excludePrivate": true,
   "excludeInternal": true,
   "includeVersion": true

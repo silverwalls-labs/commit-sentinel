@@ -7,13 +7,13 @@ Zero runtime dependencies — runs on Node.js ≥ 24 built-ins only.
 ## Installation
 
 ```bash
-npm install -g @sheplu/commit-sentinel
+npm install -g @silverwalls-labs/commit-sentinel
 ```
 
 Or as a dev dependency:
 
 ```bash
-npm install --save-dev @sheplu/commit-sentinel
+npm install --save-dev @silverwalls-labs/commit-sentinel
 ```
 
 ## Quick Start
@@ -37,7 +37,7 @@ commit-sentinel --base main
 Create a `commit-sentinel.config.ts` file in your project root:
 
 ```typescript
-import { defineConfig } from '@sheplu/commit-sentinel';
+import { defineConfig } from '@silverwalls-labs/commit-sentinel';
 
 export default defineConfig({
   extends: 'conventional',
@@ -78,7 +78,7 @@ Rules can be configured as a bare severity (`'error'`) or as a tuple with option
 Create rules with `defineRule()` and register them through the `plugins` field:
 
 ```typescript
-import { defineConfig, defineRule } from '@sheplu/commit-sentinel';
+import { defineConfig, defineRule } from '@silverwalls-labs/commit-sentinel';
 
 const noWipRule = defineRule({
   meta: {
@@ -117,7 +117,7 @@ A rule may also define `validateOptions()` to reject bad rule options at config 
 | **angular** | `build`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `test` | subject-case: error@lower, header-max-length: error@100 |
 | **hardened** | same as conventional | **all 14 rules at error** — subject-max: 72, header/body lines: 100, scope + body required, breaking-change footer required, signed commits, agent attribution blocked |
 
-> **Note:** `revert` (in the conventional, angular, and hardened presets) only covers explicit `revert: …` / `revert(scope): …` messages. Git's auto-generated `Revert "…"` messages do not match the `format` rule ([#24](https://github.com/sheplu/commit-sentinel/issues/24)).
+> **Note:** `revert` (in the conventional, angular, and hardened presets) only covers explicit `revert: …` / `revert(scope): …` messages. Git's auto-generated `Revert "…"` messages do not match the `format` rule ([#24](https://github.com/silverwalls-labs/commit-sentinel/issues/24)).
 
 > **Note:** In the hardened preset, `scope-enum` and `author-email` are enabled but pass-through with their defaults (any scope, any email) — override their options to lock them down, e.g. `'author-email': ['error', { pattern: '^.+@company\\.com$' }]`.
 
@@ -259,7 +259,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - run: npm install -g @sheplu/commit-sentinel
+      - run: npm install -g @silverwalls-labs/commit-sentinel
       - run: commit-sentinel --base origin/main
 ```
 
@@ -272,7 +272,7 @@ import {
   loadConfig,
   defineConfig,
   defineRule,
-} from '@sheplu/commit-sentinel';
+} from '@silverwalls-labs/commit-sentinel';
 
 // Parse a commit message
 const commit = parseCommit('feat(api)!: drop v1\n\nBREAKING CHANGE: removed /v1');
