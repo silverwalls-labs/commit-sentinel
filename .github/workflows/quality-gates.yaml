@@ -182,6 +182,30 @@ jobs:
           fi
           echo "✓ Package size ${SIZE_KB} KB is within 90 KB limit"
 
+      - name: Bin Shim Smoke Test
+        run: |
+          set -euo pipefail
+          TARBALL=$(ls *.tgz)
+          SMOKE=$(mktemp -d)
+          cd "$SMOKE"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund --no-save "$GITHUB_WORKSPACE/$TARBALL" >/dev/null
+          VERSION_OUTPUT=$(node_modules/.bin/commit-sentinel --version)
+          echo "bin --version: $VERSION_OUTPUT"
+          if ! echo "$VERSION_OUTPUT" | grep -Eq '[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::bin shim produced no version output"
+            exit 1
+          fi
+          set +e
+          node_modules/.bin/commit-sentinel --message 'bad message' >/dev/null 2>&1
+          CODE=$?
+          set -e
+          if [ "$CODE" -ne 2 ]; then
+            echo "::error::bin shim should exit 2 on invalid message, got $CODE"
+            exit 1
+          fi
+          echo "✓ Bin shim works"
+
   test-unit:
     name: Test (Unit)
     runs-on: ubuntu-24.04-arm
