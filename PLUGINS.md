@@ -8,7 +8,7 @@ commit-sentinel can run your own validation rules alongside the built-in ones. A
 
 ```typescript
 // commit-sentinel.config.ts
-import { defineConfig, defineRule } from '@sheplu/commit-sentinel';
+import { defineConfig, defineRule } from '@silverwalls-labs/commit-sentinel';
 
 const noWipRule = defineRule({
   meta: {
@@ -216,7 +216,7 @@ const companyEmailRule = defineRule<{ domain?: string }>({
 
 ## Recipes
 
-Ready-to-paste rules for common gaps. (Some of these are planned as built-ins — see issues [#22](https://github.com/sheplu/commit-sentinel/issues/22) and [#23](https://github.com/sheplu/commit-sentinel/issues/23) — but work as plugins today.)
+Ready-to-paste rules for common gaps. (Some of these are planned as built-ins — see issues [#22](https://github.com/silverwalls-labs/commit-sentinel/issues/22) and [#23](https://github.com/silverwalls-labs/commit-sentinel/issues/23) — but work as plugins today.)
 
 **No trailing period on the subject:**
 
@@ -259,7 +259,7 @@ Rules are pure functions, so they need no harness: build a `ParsedCommit` with t
 // no-wip.test.ts
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-import { parseCommit } from '@sheplu/commit-sentinel';
+import { parseCommit } from '@silverwalls-labs/commit-sentinel';
 import { noWipRule } from './rules/no-wip.ts';
 
 test('flags WIP subjects', () => {
@@ -304,14 +304,14 @@ your-repo/
 
 ```typescript
 // commit-sentinel.config.ts
-import { defineConfig } from '@sheplu/commit-sentinel';
+import { defineConfig } from '@silverwalls-labs/commit-sentinel';
 import { noWipRule } from './rules/no-wip.ts';
 import { issueReferenceRule } from './rules/issue-reference.ts';
 
 export default defineConfig({ extends: 'conventional', plugins: [noWipRule, issueReferenceRule] });
 ```
 
-**An npm package** — export `Rule` objects from a regular package (declare `@sheplu/commit-sentinel` as a peer dependency for the `defineRule` types):
+**An npm package** — export `Rule` objects from a regular package (declare `@silverwalls-labs/commit-sentinel` as a peer dependency for the `defineRule` types):
 
 ```typescript
 // @yourorg/commit-rules — index.ts
@@ -321,7 +321,7 @@ export { issueReferenceRule } from './issue-reference.ts';
 
 ```typescript
 // consumer's commit-sentinel.config.ts
-import { defineConfig } from '@sheplu/commit-sentinel';
+import { defineConfig } from '@silverwalls-labs/commit-sentinel';
 import { noWipRule, issueReferenceRule } from '@yourorg/commit-rules';
 
 export default defineConfig({ extends: 'conventional', plugins: [noWipRule, issueReferenceRule] });

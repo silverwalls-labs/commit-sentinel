@@ -8,7 +8,7 @@ import type { Rule, RuleConfig } from '../rules/types.ts';
  * @example
  * ```ts
  * // commit-sentinel.config.ts
- * import { defineConfig, defineRule } from '@sheplu/commit-sentinel';
+ * import { defineConfig, defineRule } from '@silverwalls-labs/commit-sentinel';
  *
  * const noWipRule = defineRule({
  *   meta: {
