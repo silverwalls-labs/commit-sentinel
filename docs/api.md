@@ -1,13 +1,7 @@
 # Programmatic API
 
 ```typescript
-import {
-  parseCommit,
-  validate,
-  loadConfig,
-  defineConfig,
-  defineRule,
-} from '@silverwalls-labs/commit-sentinel';
+import { parseCommit, validate, loadConfig } from '@silverwalls-labs/commit-sentinel';
 
 // Parse a commit message
 const commit = parseCommit('feat(api)!: drop v1\n\nBREAKING CHANGE: removed /v1');
@@ -27,30 +21,6 @@ if (!report.valid) {
     }
   }
 }
-
-// Create a custom rule
-const noWipRule = defineRule({
-  meta: {
-    name: 'no-wip',
-    description: 'Subject must not start with WIP',
-    category: 'content',
-    requiresGit: false,
-    defaultSeverity: 'error',
-  },
-  validate({ commit }) {
-    if (commit.subject?.toUpperCase().startsWith('WIP')) {
-      return [{ message: 'WIP commits are not allowed.', suggestion: 'Remove the WIP prefix.' }];
-    }
-    return [];
-  },
-});
-
-// Register it via the `plugins` field of commit-sentinel.config.ts —
-// loadConfig() merges it into the rule registry and validate() runs it
-export default defineConfig({
-  extends: 'strict',
-  plugins: [noWipRule],
-});
 ```
 
-See [plugins.md](./plugins.md) for the full custom-rule guide.
+Also exported: `defineConfig` and `defineRule` for custom configs and rules — see [plugins.md](./plugins.md) for the custom-rule guide — as well as `getPreset`, `builtinRules`, and the `human`, `json`, and `sarif` formatters.

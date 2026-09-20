@@ -41,35 +41,7 @@ Rules can be configured as a bare severity (`'error'`) or as a tuple with option
 
 ## Custom rules
 
-Create rules with `defineRule()` and register them through the `plugins` field:
+Your own rules — written with `defineRule()` and registered through the config's `plugins` field — run alongside the built-ins. A plugin rule is enabled automatically at its `meta.defaultSeverity` and can be tuned or disabled through the `rules` field like any built-in. Name collisions and unknown rule names fail at config load (exit code 1).
 
-```typescript
-import { defineConfig, defineRule } from '@silverwalls-labs/commit-sentinel';
+See [plugins.md](./plugins.md) for the full guide: API reference, typed options, option validation, git-metadata rules, recipes, testing, and distribution.
 
-const noWipRule = defineRule({
-  meta: {
-    name: 'no-wip',
-    description: 'Subject must not start with WIP',
-    category: 'content',
-    requiresGit: false,
-    defaultSeverity: 'error',
-  },
-  validate({ commit }) {
-    if (commit.subject?.toUpperCase().startsWith('WIP')) {
-      return [{ message: 'WIP commits are not allowed.', suggestion: 'Remove the WIP prefix.' }];
-    }
-    return [];
-  },
-});
-
-export default defineConfig({
-  extends: 'conventional',
-  plugins: [noWipRule],
-});
-```
-
-A plugin rule is **enabled automatically** at its `meta.defaultSeverity`; an entry under `rules` (keyed by the rule's `meta.name`) overrides its severity/options or turns it `'off'`. Name collisions and unknown rule names fail at config load (exit code 1).
-
-A rule may also define `validateOptions()` to reject bad rule options at config load (exit code 1). Plugin rules are auto-enabled with empty options `{}`, so `validateOptions` must treat an all-fields-absent object as valid — a rule whose `validateOptions` rejects `{}` cannot be loaded at all. See [plugins.md](./plugins.md) for details.
-
-**Full guide — API reference, typed options, git-metadata rules, recipes, testing, distribution: [plugins.md](./plugins.md)**
