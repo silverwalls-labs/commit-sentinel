@@ -107,6 +107,6 @@ jobs:
         run: |
           npm run build
 
-      - name: Stage Package
+      - name: Publish
         run: |
           npm stage publish --ignore-scripts --access public --provenance
