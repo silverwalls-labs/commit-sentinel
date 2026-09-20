@@ -109,4 +109,4 @@ jobs:
 
       - name: Publish
         run: |
-          npm publish --ignore-scripts --access public --provenance
+          npm stage publish --ignore-scripts --access public --provenance

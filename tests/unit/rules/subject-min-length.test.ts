@@ -26,6 +26,15 @@ describe('subject-min-length rule', () => {
     assert.equal(run('bad message', 1).length, 0);
   });
 
+  it('applies the default min of 1 when no options are given', () => {
+    const problems = subjectMinLengthRule.validate({
+      commit: parseCommit('feat: a'),
+      git: null,
+      options: {},
+    });
+    assert.equal(problems.length, 0);
+  });
+
   describe('validateOptions', () => {
     it('returns empty for valid options', () => {
       assert.equal(subjectMinLengthRule.validateOptions!({ min: 3 }).length, 0);

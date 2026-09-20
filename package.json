@@ -52,7 +52,7 @@
     "test:smoke": "node --test 'tests/smoke/**/*.test.ts'",
     "test:e2e": "node --test 'tests/e2e/**/*.test.ts'",
     "test:fuzz": "node --test 'tests/fuzz/**/*.test.ts'",
-    "test:unit:cov": "mkdir -p coverage && node --test --experimental-test-coverage --test-coverage-include='src/**/*.ts' --test-coverage-lines=98 --test-coverage-branches=90 --test-coverage-functions=95 --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/unit.lcov 'tests/unit/**/*.test.ts'",
+    "test:unit:cov": "mkdir -p coverage && node --test --experimental-test-coverage --test-coverage-include='src/**/*.ts' --test-coverage-lines=99 --test-coverage-branches=98 --test-coverage-functions=99 --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/unit.lcov 'tests/unit/**/*.test.ts'",
     "test:integration:cov": "mkdir -p coverage && node --test --experimental-test-coverage --test-coverage-include='src/**/*.ts' --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/integration.lcov 'tests/integration/**/*.test.ts'",
     "test:smoke:cov": "mkdir -p coverage && node --test --experimental-test-coverage --test-coverage-include='src/**/*.ts' --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/smoke.lcov 'tests/smoke/**/*.test.ts'",
     "test:e2e:cov": "mkdir -p coverage && node --test --experimental-test-coverage --test-coverage-include='src/**/*.ts' --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/e2e.lcov 'tests/e2e/**/*.test.ts'",

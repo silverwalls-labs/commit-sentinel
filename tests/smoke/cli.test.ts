@@ -1,10 +1,14 @@
 import { strict as assert } from 'node:assert';
+import { execFile } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { run } from '../../src/cli.ts';
 import { attribution } from '../fixtures/messages.ts';
+
+const execFileAsync = promisify(execFile);
 
 describe('CLI run()', () => {
   let dir: string;
@@ -325,5 +329,71 @@ describe('CLI run()', () => {
       assert.equal(result.exitCode, 1);
       assert.match(result.stderr, /conflicts with a built-in rule/);
     });
+  });
+});
+
+describe('CLI run() range validation (fixture git repo)', () => {
+  let dir: string;
+  let previousCwd: string;
+
+  beforeEach(async () => {
+    previousCwd = process.cwd();
+    dir = await mkdtemp(join(tmpdir(), 'commit-sentinel-range-'));
+
+    const commit = (message: string) =>
+      execFileAsync(
+        'git',
+        ['-c', 'user.name=Test', '-c', 'user.email=test@example.com',
+          'commit', '--allow-empty', '-m', message],
+        { cwd: dir },
+      );
+
+    await execFileAsync('git', ['init', '-q', '-b', 'main'], { cwd: dir });
+    // Oldest→newest: valid, invalid, valid. The range HEAD~2..HEAD covers
+    // the last two, so it always contains exactly one invalid commit.
+    await commit('chore: bootstrap fixture');
+    await commit('bad message with no colon');
+    await commit('feat: valid change');
+    process.chdir(dir);
+  });
+
+  afterEach(async () => {
+    process.chdir(previousCwd);
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('exits 2 with output on stderr when a commit in the range is invalid', async () => {
+    const result = await run(['--range', 'HEAD~2..HEAD']);
+    assert.equal(result.exitCode, 2);
+    assert.equal(result.stdout, '');
+    assert.match(result.stderr, /Invalid commit message/);
+  });
+
+  it('exits 0 with output on stdout for an empty range', async () => {
+    const result = await run(['--range', 'HEAD..HEAD']);
+    assert.equal(result.exitCode, 0);
+    assert.equal(result.stderr, '');
+    assert.match(result.stdout, /No commits found/);
+  });
+
+  it('merges range reports into a single SARIF document', async () => {
+    const result = await run(['--range', 'HEAD~2..HEAD', '--sarif']);
+    assert.equal(result.exitCode, 2);
+    assert.equal(result.stdout, '');
+    const sarif = JSON.parse(result.stderr);
+    assert.equal(sarif.version, '2.1.0');
+    assert.ok(sarif.runs[0].results.length > 0);
+    assert.equal(sarif.runs[0].results[0].level, 'error');
+  });
+
+  it('reports a range as a JSON array of reports', async () => {
+    const result = await run(['--range', 'HEAD~2..HEAD', '--json']);
+    assert.equal(result.exitCode, 2);
+    assert.equal(result.stdout, '');
+    const reports = JSON.parse(result.stderr);
+    assert.ok(Array.isArray(reports));
+    assert.equal(reports.length, 2);
+    assert.equal(reports[0].valid, false);
+    assert.equal(reports[1].valid, true);
   });
 });

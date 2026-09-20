@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
-import { readCommitMessage, readGitMeta, listCommitsInRange } from './git.ts';
+import { readCommitMessage, readGitMetaOrNull, listCommitsInRange } from './git.ts';
 import { loadConfig } from './config/loader.ts';
 import type { ResolvedConfig } from './config/loader.ts';
 import { validate } from './runner.ts';
@@ -132,7 +132,7 @@ export async function run(argv: ReadonlyArray<string>): Promise<RunResult> {
     const message = await resolveMessage(values);
     const hasGitSource = values.commit !== undefined || sourceCount === 0;
     const ref = values.commit ?? 'HEAD';
-    const git = hasGitSource ? await readGitMeta(ref).catch(() => null) : null;
+    const git = hasGitSource ? await readGitMetaOrNull(ref) : null;
 
     const report = validate(message, config, git);
     const output = formatter.format(report);
@@ -169,7 +169,7 @@ async function validateRange(
 
   for (const sha of shas) {
     const message = await readCommitMessage(sha);
-    const git = await readGitMeta(sha).catch(() => null);
+    const git = await readGitMetaOrNull(sha);
     const report = validate(message, config, git);
     reports.push(report);
     if (!report.valid) hasError = true;

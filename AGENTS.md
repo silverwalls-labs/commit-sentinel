@@ -69,4 +69,4 @@ npm run docs:build    # typedoc → docs/api/
 ## CI
 
 - `quality-gates.yaml` runs on PRs to main: commit message validation (dogfooding), OSV scan, semgrep, npm audit, lint, typecheck, build + package size check, 5 test categories with coverage artifacts, merged coverage PR comment, typedoc build.
-- `publish.yaml` runs on GitHub release published: re-runs the quality gate at the tag, then publishes to npm via OIDC trusted publishing in the `release` environment (`id-token: write`, no `NODE_AUTH_TOKEN`). Version is set from the release tag into `package.json` and `src/version.ts` before build.
+- `publish.yaml` runs on GitHub release published: re-runs the quality gate at the tag, then **stages** the package to npm via `npm stage publish` (OIDC trusted publishing in the `release` environment, `id-token: write`, no `NODE_AUTH_TOKEN`). Version is set from the release tag into `package.json` and `src/version.ts` before build. The staged package is not live until a maintainer approves it with 2FA (`npm stage approve` or the npmjs.com Staged Packages tab); the trusted publisher on npm should be configured to allow only staged publishing.

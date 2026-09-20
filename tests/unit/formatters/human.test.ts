@@ -155,4 +155,74 @@ describe('humanFormatter', () => {
     );
     assert.match(output, /<empty>/);
   });
+
+  describe('color detection via environment', () => {
+    const savedNoColor = process.env.NO_COLOR;
+    const savedForceColor = process.env.FORCE_COLOR;
+
+    function restoreEnv(): void {
+      if (savedNoColor === undefined) {
+        delete process.env.NO_COLOR;
+      } else {
+        process.env.NO_COLOR = savedNoColor;
+      }
+      if (savedForceColor === undefined) {
+        delete process.env.FORCE_COLOR;
+      } else {
+        process.env.FORCE_COLOR = savedForceColor;
+      }
+    }
+
+    it('disables colors when NO_COLOR is set', () => {
+      delete process.env.FORCE_COLOR;
+      process.env.NO_COLOR = '1';
+      try {
+        const output = humanFormatter.format(
+          {
+            valid: false,
+            commit: parseCommit('bad message'),
+            results: [
+              {
+                ruleName: 'format',
+                severity: 'error',
+                problems: [{ message: 'Bad.' }],
+              },
+            ],
+            errorCount: 1,
+            warningCount: 0,
+            skippedGitRules: [],
+          },
+        );
+        assert.ok(!output.includes('\u001b['));
+      } finally {
+        restoreEnv();
+      }
+    });
+
+    it('enables colors when FORCE_COLOR is set', () => {
+      delete process.env.NO_COLOR;
+      process.env.FORCE_COLOR = '1';
+      try {
+        const output = humanFormatter.format(
+          {
+            valid: false,
+            commit: parseCommit('bad message'),
+            results: [
+              {
+                ruleName: 'format',
+                severity: 'error',
+                problems: [{ message: 'Bad.' }],
+              },
+            ],
+            errorCount: 1,
+            warningCount: 0,
+            skippedGitRules: [],
+          },
+        );
+        assert.ok(output.includes('\u001b['));
+      } finally {
+        restoreEnv();
+      }
+    });
+  });
 });

@@ -1,10 +1,14 @@
 import { strict as assert } from 'node:assert';
+import { execFile } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { promisify } from 'node:util';
 import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { runCli } from '../helpers/spawn.ts';
+
+const execFileAsync = promisify(execFile);
 
 const INDEX_URL = pathToFileURL(
   resolve(import.meta.dirname, '..', '..', 'src', 'index.ts'),
@@ -148,6 +152,23 @@ describe('CLI e2e', () => {
     const output = result.stdout || result.stderr;
     const sarif = JSON.parse(output);
     assert.equal(sarif.version, '2.1.0');
+  });
+
+  it('exits 2 for a range when the config rejects every commit', async () => {
+    const configPath = join(dir, 'reject-range.config.ts');
+    await writeFile(configPath, `
+      export default {
+        extends: 'strict',
+        rules: {
+          'type-enum': ['error', { allowed: ['zzz'] }],
+        },
+      };
+    `);
+
+    const result = await runCli(['--range', 'HEAD~1..HEAD', '--config', configPath]);
+    assert.equal(result.exitCode, 2);
+    assert.equal(result.stdout, '');
+    assert.ok(result.stderr.length > 0);
   });
 
   // ── config ──
@@ -407,5 +428,48 @@ describe('CLI e2e', () => {
   it('handles commit message with unicode', async () => {
     const result = await runCli(['--message', 'feat: ajouter la connexion 🚀']);
     assert.equal(result.exitCode, 0);
+  });
+});
+
+describe('CLI e2e range with merge commits', () => {
+  let dir: string;
+  let previousCwd: string;
+
+  beforeEach(async () => {
+    previousCwd = process.cwd();
+    dir = await mkdtemp(join(tmpdir(), 'commit-sentinel-e2e-merge-'));
+
+    const git = (args: string[]) => execFileAsync('git', args, { cwd: dir });
+    const commit = (message: string) =>
+      git(['-c', 'user.name=Test', '-c', 'user.email=test@example.com',
+        'commit', '--allow-empty', '-m', message]);
+
+    // main: A -- C -- M (merge of side)
+    // side:     \-- B --/
+    await git(['init', '-q', '-b', 'main']);
+    await commit('feat: first feature');
+    await git(['checkout', '-q', '-b', 'side']);
+    await commit('feat: side feature');
+    await git(['checkout', '-q', 'main']);
+    await commit('feat: second feature');
+    await git(['-c', 'user.name=Test', '-c', 'user.email=test@example.com',
+      'merge', '--no-edit', 'side']);
+    process.chdir(dir);
+  });
+
+  afterEach(async () => {
+    process.chdir(previousCwd);
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('skips merge commits when validating a range', async () => {
+    const result = await runCli(['--range', 'HEAD~2..HEAD']);
+    // The merge commit message ("Merge branch 'side'") would fail validation,
+    // so exit 0 proves it was excluded from the range.
+    assert.equal(result.exitCode, 0);
+    assert.equal((result.stdout.match(/Valid commit message/g) ?? []).length, 2);
+    assert.match(result.stdout, /feat: side feature/);
+    assert.match(result.stdout, /feat: second feature/);
+    assert.ok(!result.stdout.includes('Merge branch'));
   });
 });

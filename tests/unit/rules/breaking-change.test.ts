@@ -43,6 +43,23 @@ describe('breaking-change rule', () => {
     assert.equal(run(msg).length, 0);
   });
 
+  it('accepts the hyphenated BREAKING-CHANGE footer', () => {
+    const msg = 'feat: change\n\nBREAKING-CHANGE: new behavior';
+    assert.equal(run(msg).length, 0);
+  });
+
+  it('accepts the hyphenated BREAKING-CHANGE footer as satisfying requireFooter', () => {
+    const msg = 'feat!: drop API\n\nBREAKING-CHANGE: removed /v1';
+    assert.equal(run(msg, true).length, 0);
+  });
+
+  it('fails when the hyphenated BREAKING-CHANGE footer has empty value', () => {
+    const msg = 'feat: change\n\nBREAKING-CHANGE: ';
+    const problems = run(msg);
+    assert.equal(problems.length, 1);
+    assert.match(problems[0]!.message, /non-empty description/);
+  });
+
   describe('validateOptions', () => {
     it('returns empty for valid options', () => {
       assert.equal(breakingChangeRule.validateOptions!({ requireFooter: true }).length, 0);
