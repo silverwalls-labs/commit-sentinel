@@ -3,6 +3,18 @@
   "version": "0.1.0",
   "description": "Validate git commit message formats",
   "license": "MIT",
+  "keywords": [
+    "conventional-commits",
+    "commit-message",
+    "commit-lint",
+    "git-hooks",
+    "cli",
+    "lint",
+    "code-quality"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/silverwalls-labs/commit-sentinel.git"
@@ -29,7 +41,7 @@
   "files": [
     "dist",
     "README.md",
-    "PLUGINS.md",
+    "docs/*.md",
     "LICENSE"
   ],
   "scripts": {

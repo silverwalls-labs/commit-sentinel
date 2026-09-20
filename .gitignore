@@ -22,7 +22,7 @@ lib-cov
 coverage
 
 # Generated API docs
-docs
+docs/api
 *.lcov
 
 # nyc test coverage
