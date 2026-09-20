@@ -75,7 +75,7 @@ jobs:
           npm pack --dry-run
 
   publish:
-    name: Stage to npm
+    name: Publish to npm
     needs: quality-gate
     runs-on: ubuntu-24.04-arm
     environment: release
@@ -107,30 +107,6 @@ jobs:
         run: |
           npm run build
 
-      - name: Ensure npm supports staged publishing
-        run: |
-          npm install -g npm@11
-          npm --version
-
       - name: Stage Package
         run: |
           npm stage publish --ignore-scripts --access public --provenance
-
-      - name: Approval Instructions
-        run: |
-          {
-            echo "## Staged package — approval required"
-            echo ""
-            echo "The package version was **staged** on npm, not published. It is not yet publicly available."
-            echo ""
-            echo "A maintainer must review and approve it with 2FA before it goes live:"
-            echo ""
-            echo '```bash'
-            echo "npm stage list @silverwalls-labs/commit-sentinel"
-            echo "npm stage view <stage-id>"
-            echo "npm stage download <stage-id>   # inspect the tarball"
-            echo "npm stage approve <stage-id>    # requires 2FA"
-            echo '```'
-            echo ""
-            echo "Approval is also available on npmjs.com under **Staged Packages**."
-          } >> "$GITHUB_STEP_SUMMARY"
