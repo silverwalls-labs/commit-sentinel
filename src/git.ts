@@ -26,6 +26,24 @@ export async function readCommitMessage(ref = 'HEAD'): Promise<string> {
 }
 
 /**
+ * Parse raw `git show -s --format=%ae%n%G?` output into a {@link GitMeta}.
+ *
+ * @param stdout - The raw `git show` output (author email line, then signature status).
+ * @returns The parsed {@link GitMeta}.
+ */
+export function parseGitMeta(stdout: string): GitMeta {
+  const lines = stdout.trim().split('\n');
+  const authorEmail = lines[0]!;
+  const sigStatus = lines[1] ?? 'N';
+
+  // %G? returns: G=good, B=bad, U=untrusted, X=expired, Y=expired key,
+  // R=revoked, E=error, N=no signature. Treat anything except N/E as signed.
+  const signed = sigStatus !== 'N' && sigStatus !== 'E';
+
+  return { authorEmail, signed };
+}
+
+/**
  * Read git metadata (author email, signing status) for a commit.
  *
  * Signing is a **presence check only** — the signature is not verified.
@@ -40,15 +58,23 @@ export async function readGitMeta(ref = 'HEAD'): Promise<GitMeta> {
     ['show', '-s', '--format=%ae%n%G?', ref],
     { maxBuffer: 1024 * 1024 },
   );
-  const lines = stdout.trim().split('\n');
-  const authorEmail = lines[0] ?? '';
-  const sigStatus = lines[1] ?? 'N';
+  return parseGitMeta(stdout);
+}
 
-  // %G? returns: G=good, B=bad, U=untrusted, X=expired, Y=expired key,
-  // R=revoked, E=error, N=no signature. Treat anything except N/E as signed.
-  const signed = sigStatus !== 'N' && sigStatus !== 'E';
-
-  return { authorEmail, signed };
+/**
+ * Read git metadata, returning `null` when it is unavailable (bad ref, not a
+ * git repository, or `git` is missing) instead of throwing.
+ *
+ * Callers use this so that git-metadata rules can be skipped gracefully.
+ *
+ * @param ref - A git ref. Defaults to `"HEAD"`.
+ */
+export async function readGitMetaOrNull(ref = 'HEAD'): Promise<GitMeta | null> {
+  try {
+    return await readGitMeta(ref);
+  } catch {
+    return null;
+  }
 }
 
 /**

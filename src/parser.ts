@@ -72,7 +72,7 @@ export function parseCommit(message: string): ParsedCommit {
   const raw = message;
   const lines = message.split(/\r?\n/);
 
-  const header = (lines[0] ?? '').trim();
+  const header = lines[0]!.trim();
   const headerMatch = HEADER_RE.exec(header);
 
   const type = headerMatch?.groups?.type ?? null;
@@ -162,13 +162,11 @@ function tryParseFooters(lines: string[], from: number): Footer[] | null {
   return footers.length > 0 ? footers : null;
 }
 
-function joinLines(lines: string[], from: number, to: number): string | null {
+function joinLines(lines: string[], from: number, to: number): string {
   // Trim trailing blank lines
   let end = to;
   while (end > from && lines[end - 1]!.trim() === '') {
     end--;
   }
-  if (end <= from) return null;
-  const result = lines.slice(from, end).join('\n');
-  return result.length > 0 ? result : null;
+  return lines.slice(from, end).join('\n');
 }

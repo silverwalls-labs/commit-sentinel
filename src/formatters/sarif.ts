@@ -65,7 +65,8 @@ export const sarifFormatter: Formatter = {
 
     const results: SarifResult[] = [];
     for (const result of report.results) {
-      const ruleIndex = ruleIndexMap.get(result.ruleName) ?? 0;
+      // The descriptor loop above registered every result's rule name.
+      const ruleIndex = ruleIndexMap.get(result.ruleName)!;
       const level = result.severity === 'error' ? 'error' : 'warning';
 
       for (const problem of result.problems) {
