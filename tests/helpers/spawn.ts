@@ -9,9 +9,9 @@ export interface SpawnResult {
   stderr: string;
 }
 
-export function runCli(args: string[], input?: string): Promise<SpawnResult> {
+export function runNode(script: string, args: string[], input?: string): Promise<SpawnResult> {
   return new Promise((resolveSpawn, reject) => {
-    const child = spawn(process.execPath, [BIN, ...args], {
+    const child = spawn(process.execPath, [script, ...args], {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     let stdout = '';
@@ -26,4 +26,8 @@ export function runCli(args: string[], input?: string): Promise<SpawnResult> {
     child.on('close', (code) => resolveSpawn({ exitCode: code ?? 0, stdout, stderr }));
     child.stdin.end(input);
   });
+}
+
+export function runCli(args: string[], input?: string): Promise<SpawnResult> {
+  return runNode(BIN, args, input);
 }

@@ -1,12 +1,12 @@
 import { strict as assert } from 'node:assert';
 import { execFile } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, it } from 'node:test';
-import { runCli } from '../helpers/spawn.ts';
+import { runCli, runNode } from '../helpers/spawn.ts';
 
 const execFileAsync = promisify(execFile);
 
@@ -471,5 +471,46 @@ describe('CLI e2e range with merge commits', () => {
     assert.match(result.stdout, /feat: side feature/);
     assert.match(result.stdout, /feat: second feature/);
     assert.ok(!result.stdout.includes('Merge branch'));
+  });
+});
+
+describe('CLI e2e symlinked entry (npm bin shims)', () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'commit-sentinel-e2e-symlink-'));
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  const makeBinShim = () =>
+    symlink(resolve(import.meta.dirname, '..', '..', 'index.ts'), join(dir, 'commit-sentinel'));
+
+  it('prints the version when invoked through a symlinked bin path', async () => {
+    await makeBinShim();
+    const result = await runNode(join(dir, 'commit-sentinel'), ['--version']);
+    assert.equal(result.exitCode, 0);
+    assert.match(result.stdout, /\d+\.\d+\.\d+/);
+  });
+
+  it('exits 2 with output for an invalid message when invoked through a symlinked bin path', async () => {
+    await makeBinShim();
+    const result = await runNode(join(dir, 'commit-sentinel'), ['--message', 'bad message']);
+    assert.equal(result.exitCode, 2);
+    assert.match(result.stderr, /bad message/);
+  });
+
+  it('stays silent when imported as a library, not run as a script', async () => {
+    const driver = join(dir, 'driver.mjs');
+    await writeFile(
+      driver,
+      `const mod = await import('${pathToFileURL(resolve(import.meta.dirname, '..', '..', 'index.ts')).href}');\n` +
+        `console.log('imported', typeof mod.parseCommit);\n`,
+    );
+    const result = await runNode(driver, []);
+    assert.equal(result.exitCode, 0);
+    assert.match(result.stdout, /imported function/);
   });
 });
