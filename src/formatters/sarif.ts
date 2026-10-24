@@ -40,6 +40,7 @@ interface SarifRun {
     };
   };
   results: SarifResult[];
+  properties?: Record<string, unknown>;
 }
 
 interface SarifLog {
@@ -107,21 +108,30 @@ export const sarifFormatter: Formatter = {
       }
     }
 
+    const run: SarifRun = {
+      tool: {
+        driver: {
+          name: 'commit-sentinel',
+          version: VERSION,
+          rules: ruleDescriptors,
+        },
+      },
+      results,
+    };
+
+    // Ignored commits produce zero results; a run-level properties bag keeps
+    // the SARIF log self-describing about why.
+    if (report.ignored) {
+      run.properties = { ignored: true, ignoredBy: report.ignoredBy };
+      if (report.sha) {
+        run.properties.commitSha = report.sha;
+      }
+    }
+
     const sarif: SarifLog = {
       version: '2.1.0',
       $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
-      runs: [
-        {
-          tool: {
-            driver: {
-              name: 'commit-sentinel',
-              version: VERSION,
-              rules: ruleDescriptors,
-            },
-          },
-          results,
-        },
-      ],
+      runs: [run],
     };
 
     return JSON.stringify(sarif, null, 2) + '\n';

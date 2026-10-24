@@ -1,6 +1,7 @@
 // Re-export all public types from their source modules
 export type { ParsedCommit, Footer } from './parser.ts';
 export type { GitMeta, CommitRecord } from './git.ts';
+export type { IgnorePredicate, ResolvedIgnore } from './ignores.ts';
 export type {
   Rule,
   RuleMeta,

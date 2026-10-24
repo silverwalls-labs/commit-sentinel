@@ -47,4 +47,20 @@ if (rangeReport) reports.push(rangeReport);
 
 The per-sha readers (`listCommitsInRange`, `readCommitMessage`, `readGitMetaOrNull`) remain exported for single-commit workflows.
 
-Also exported: `defineConfig` and `defineRule` for custom configs and rules — see [plugins.md](./plugins.md) for the custom-rule guide — as well as `getPreset`, `builtinRules`, and the `human`, `json`, and `sarif` formatters.
+## Ignored commits
+
+Before any rule runs, `validate()` tests the message against the config's ignore list — git-generated messages (merge, revert/reapply, `fixup!`/`squash!`/`amend!`) short-circuit to a valid report carrying `ignored: true` and `ignoredBy: '<pattern name>'` (both fields are absent on reports that went through the rules):
+
+```typescript
+const report = validate('Revert "feat: add login"', config);
+console.log(report.valid);     // true
+console.log(report.ignored);   // true
+console.log(report.ignoredBy); // 'revert'
+console.log(report.results);   // []
+```
+
+`ResolvedConfig.ignores` carries the resolved list (`loadConfig()` builds it from the config's `defaultIgnores`/`ignores` fields — see [configuration.md](./configuration.md#ignoring-auto-generated-commits)). When the key is absent — e.g. on a hand-built config — `validate()` falls back to the built-in `defaultIgnores` (exported, a `ReadonlyArray<ResolvedIgnore>` of `{ name, test }` entries); pass `ignores: []` to disable ignoring entirely.
+
+`cleanCommitMessage(message)` is also exported: it strips git editor comments (column-0 `#` lines) and scissors sections from a raw message, the way the CLI does for `--file`/`--stdin`.
+
+Also exported: `defineConfig` and `defineRule` for custom configs and rules — see [plugins.md](./plugins.md) for the custom-rule guide — as well as `getPreset`, `builtinRules`, the `IgnorePredicate`/`ResolvedIgnore` types, and the `human`, `json`, and `sarif` formatters.

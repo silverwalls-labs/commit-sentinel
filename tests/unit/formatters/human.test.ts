@@ -73,6 +73,76 @@ describe('humanFormatter', () => {
     assert.match(output, /1 warning/);
   });
 
+  it('formats an ignored commit as a single informational line', () => {
+    const output = humanFormatter.format(
+      {
+        valid: true,
+        commit: parseCommit('Revert "feat: add login"'),
+        results: [],
+        errorCount: 0,
+        warningCount: 0,
+        skippedGitRules: [],
+        ignored: true,
+        ignoredBy: 'revert',
+      },
+      { color: false },
+    );
+    assert.equal(output, 'ℹ Ignored revert commit message: Revert "feat: add login"\n');
+  });
+
+  it('colors the ignored notice when color is enabled', () => {
+    const output = humanFormatter.format(
+      {
+        valid: true,
+        commit: parseCommit('fixup! feat: add login'),
+        results: [],
+        errorCount: 0,
+        warningCount: 0,
+        skippedGitRules: [],
+        ignored: true,
+        ignoredBy: 'fixup',
+      },
+      { color: true },
+    );
+    assert.ok(output.includes('\u001b[34mℹ\u001b[39m'));
+    assert.match(output, /Ignored fixup commit message/);
+  });
+
+  it('sanitizes control characters in an ignored header', () => {
+    const output = humanFormatter.format(
+      {
+        valid: true,
+        commit: parseCommit('Revert "feat: \x1b[2Jadd login"'),
+        results: [],
+        errorCount: 0,
+        warningCount: 0,
+        skippedGitRules: [],
+        ignored: true,
+        ignoredBy: 'revert',
+      },
+      { color: false },
+    );
+    assert.ok(!output.includes('\x1b'));
+    assert.match(output, /Ignored revert commit message/);
+  });
+
+  it('labels an empty ignored header as <empty>', () => {
+    const output = humanFormatter.format(
+      {
+        valid: true,
+        commit: parseCommit(''),
+        results: [],
+        errorCount: 0,
+        warningCount: 0,
+        skippedGitRules: [],
+        ignored: true,
+        ignoredBy: 'custom',
+      },
+      { color: false },
+    );
+    assert.match(output, /Ignored custom commit message: <empty>/);
+  });
+
   it('shows skipped git rules on valid path', () => {
     const output = humanFormatter.format(
       {

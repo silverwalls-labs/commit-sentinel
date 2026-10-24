@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadConfig } from '../../src/config/loader.ts';
+import { defaultIgnores } from '../../src/ignores.ts';
 import { validate } from '../../src/runner.ts';
 import { INDEX_URL } from '../helpers/index-url.ts';
 
@@ -578,6 +579,98 @@ describe('loadConfig', () => {
       await writeFile(join(dir, 'commit-sentinel.config.ts'), configContent);
       const config = await loadConfig(dir);
       assert.ok(config.rules['custom-validated']);
+    });
+  });
+
+  describe('ignores resolution', () => {
+    it('resolves the default ignores when no config file exists', async () => {
+      const config = await loadConfig(dir);
+      assert.deepEqual(config.ignores, defaultIgnores);
+    });
+
+    it('resolves the default ignores when the config does not mention them', async () => {
+      await writeFile(
+        join(dir, 'commit-sentinel.config.ts'),
+        `export default { extends: 'conventional' };`,
+      );
+      const config = await loadConfig(dir);
+      assert.deepEqual(config.ignores, defaultIgnores);
+    });
+
+    it('resolves an empty list for defaultIgnores: false', async () => {
+      await writeFile(
+        join(dir, 'commit-sentinel.config.ts'),
+        `export default { defaultIgnores: false };`,
+      );
+      const config = await loadConfig(dir);
+      assert.deepEqual(config.ignores, []);
+    });
+
+    it('appends custom predicates after the defaults', async () => {
+      const configContent = `
+        export default {
+          ignores: [function noWip(message) { return message.startsWith('WIP'); }],
+        };
+      `;
+      await writeFile(join(dir, 'commit-sentinel.config.ts'), configContent);
+      const config = await loadConfig(dir);
+      assert.equal(config.ignores!.length, defaultIgnores.length + 1);
+      assert.equal(config.ignores![0]!.name, defaultIgnores[0]!.name);
+      assert.equal(config.ignores!.at(-1)!.name, 'noWip');
+    });
+
+    it('runs a custom ignore end-to-end through validate()', async () => {
+      const configContent = `
+        export default {
+          extends: 'strict',
+          defaultIgnores: false,
+          ignores: [function wip(message) { return message.startsWith('WIP'); }],
+        };
+      `;
+      await writeFile(join(dir, 'commit-sentinel.config.ts'), configContent);
+      const config = await loadConfig(dir);
+
+      const ignored = validate('WIP stuff', config);
+      assert.equal(ignored.ignored, true);
+      assert.equal(ignored.ignoredBy, 'wip');
+
+      // Defaults are off: a git revert message is validated (and fails format).
+      const revert = validate('Revert "feat: add login"', config);
+      assert.equal(revert.valid, false);
+      assert.ok(!('ignored' in revert));
+    });
+
+    it('throws for a non-boolean defaultIgnores', async () => {
+      await writeFile(
+        join(dir, 'commit-sentinel.config.ts'),
+        `export default { defaultIgnores: 'yes' };`,
+      );
+      await assert.rejects(
+        () => loadConfig(dir),
+        /Invalid "defaultIgnores" in config: expected a boolean, got: string\./,
+      );
+    });
+
+    it('throws for a non-array ignores', async () => {
+      await writeFile(
+        join(dir, 'commit-sentinel.config.ts'),
+        `export default { ignores: 'nope' };`,
+      );
+      await assert.rejects(
+        () => loadConfig(dir),
+        /Invalid "ignores" in config: expected an array of functions\./,
+      );
+    });
+
+    it('throws for a non-function ignores entry', async () => {
+      await writeFile(
+        join(dir, 'commit-sentinel.config.ts'),
+        `export default { ignores: [42] };`,
+      );
+      await assert.rejects(
+        () => loadConfig(dir),
+        /Invalid entry in "ignores": expected a function/,
+      );
     });
   });
 

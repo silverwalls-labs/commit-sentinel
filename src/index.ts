@@ -1,6 +1,12 @@
 // Parser
 export { parseCommit } from './parser.ts';
 
+// Cleanup — strip editor comments / scissors sections from raw messages
+export { cleanCommitMessage } from './cleanup.ts';
+
+// Ignores — built-in patterns for git-generated commit messages
+export { defaultIgnores } from './ignores.ts';
+
 // Config
 export { defineConfig } from './config/define-config.ts';
 export { loadConfig } from './config/loader.ts';
@@ -27,6 +33,8 @@ export type {
   Footer,
   GitMeta,
   CommitRecord,
+  IgnorePredicate,
+  ResolvedIgnore,
   Rule,
   RuleMeta,
   RuleContext,

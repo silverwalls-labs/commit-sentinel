@@ -2,6 +2,8 @@
 
 ## Git hooks
 
+In a `commit-msg` hook the message file (`$1`, typically `.git/COMMIT_EDITMSG`) still contains git's `#` template comments — commit-sentinel strips them (and any scissors section) automatically when reading via `--file` or `--stdin`, so no pre-processing is needed.
+
 ### Using with Husky
 
 ```bash

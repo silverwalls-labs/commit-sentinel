@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { mkdtemp } from 'node:fs/promises';
+import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -13,6 +13,27 @@ export function commitIn(dir: string, message: string): Promise<unknown> {
     'git',
     ['-c', 'user.name=Test', '-c', 'user.email=test@example.com',
       'commit', '--allow-empty', '-m', message],
+    { cwd: dir, env: gitEnv },
+  );
+}
+
+/**
+ * Write `content` to `file` and commit it in `dir` with a fixed test identity.
+ * Unlike {@link commitIn}, the commit carries a real change — so it can be
+ * meaningfully reverted with `git revert`.
+ */
+export async function commitFileIn(
+  dir: string,
+  file: string,
+  content: string,
+  message: string,
+): Promise<void> {
+  await writeFile(join(dir, file), content, 'utf8');
+  await execFileAsync('git', ['add', file], { cwd: dir, env: gitEnv });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.name=Test', '-c', 'user.email=test@example.com',
+      'commit', '-m', message],
     { cwd: dir, env: gitEnv },
   );
 }

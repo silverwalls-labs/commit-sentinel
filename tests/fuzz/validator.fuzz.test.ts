@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
 import fc from 'fast-check';
 import { validate } from '../../src/runner.ts';
+import { cleanCommitMessage } from '../../src/cleanup.ts';
 import type { ResolvedConfig } from '../../src/config/loader.ts';
 import type { ActiveSeverity } from '../../src/rules/types.ts';
 import { humanFormatter } from '../../src/formatters/human.ts';
@@ -13,7 +14,10 @@ import { builtinRules } from '../../src/rules/registry.ts';
 
 const emptyConfig: ResolvedConfig = { rules: {} };
 
+// ignores: [] opts out of the default ignores so a generated string that
+// happens to look git-generated (e.g. 'fixup! x') cannot skip the rules.
 const strictConfig: ResolvedConfig = {
+  ignores: [],
   rules: {
     'format': { severity: 'error', options: {} },
     'type-enum': { severity: 'error', options: { allowed: ['feat', 'fix', 'chore'] } },
@@ -24,6 +28,7 @@ const strictConfig: ResolvedConfig = {
 };
 
 const allRulesConfig: ResolvedConfig = {
+  ignores: [],
   rules: {
     'format': { severity: 'error', options: {} },
     'type-enum': { severity: 'error', options: { allowed: ['feat', 'fix', 'chore'] } },
@@ -155,6 +160,48 @@ describe('validate fuzz', () => {
     );
   });
 
+  // ── ignore invariants ──
+
+  it('any fixup! message is ignored under the default ignores', () => {
+    // No `ignores` key: the runner falls back to the built-in defaults.
+    const config: ResolvedConfig = { rules: strictConfig.rules };
+    fc.assert(
+      fc.property(fc.string(), (suffix: string) => {
+        const report = validate(`fixup! ${suffix}`, config);
+        assert.equal(report.valid, true);
+        assert.equal(report.ignored, true);
+        assert.equal(report.ignoredBy, 'fixup');
+        assert.equal(report.results.length, 0);
+      }),
+      { numRuns: 500 },
+    );
+  });
+
+  it('any single-line Revert "…" message is ignored under the default ignores', () => {
+    const config: ResolvedConfig = { rules: strictConfig.rules };
+    const subjectArb = fc.string().map((s: string) => s.replace(/[\r\n]/g, ' '));
+    fc.assert(
+      fc.property(subjectArb, (subject: string) => {
+        const report = validate(`Revert "${subject}"`, config);
+        assert.equal(report.valid, true);
+        assert.equal(report.ignored, true);
+        assert.equal(report.ignoredBy, 'revert');
+      }),
+      { numRuns: 500 },
+    );
+  });
+
+  it('ignores: [] never produces an ignored report', () => {
+    fc.assert(
+      fc.property(fc.string(), (message: string) => {
+        const report = validate(message, strictConfig);
+        assert.ok(!('ignored' in report));
+        assert.ok(!('ignoredBy' in report));
+      }),
+      { numRuns: 500 },
+    );
+  });
+
   // ── config variation ──
 
   it('handles random severity assignments', () => {
@@ -272,6 +319,39 @@ describe('formatter fuzz', () => {
         assert.ok(output.length > 0);
       }),
       { numRuns: 200 },
+    );
+  });
+});
+
+describe('cleanCommitMessage fuzz', () => {
+  it('never throws and always returns a string', () => {
+    fc.assert(
+      fc.property(fc.string(), (message: string) => {
+        assert.equal(typeof cleanCommitMessage(message), 'string');
+      }),
+      { numRuns: 1000 },
+    );
+  });
+
+  it('never leaves a column-0 comment line in the output', () => {
+    fc.assert(
+      fc.property(fc.string(), (message: string) => {
+        const cleaned = cleanCommitMessage(message);
+        for (const line of cleaned.split('\n')) {
+          assert.ok(!line.startsWith('#'));
+        }
+      }),
+      { numRuns: 1000 },
+    );
+  });
+
+  it('is idempotent', () => {
+    fc.assert(
+      fc.property(fc.string(), (message: string) => {
+        const once = cleanCommitMessage(message);
+        assert.equal(cleanCommitMessage(once), once);
+      }),
+      { numRuns: 1000 },
     );
   });
 });

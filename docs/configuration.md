@@ -28,6 +28,41 @@ export default defineConfig({
 
 > **Note:** Node.js caches ESM `import()` by URL. If you change the config file, restart the process to pick up the new values.
 
+## Ignoring auto-generated commits
+
+Git writes its own messages for merges, reverts, and autosquash commits. Those never follow the conventional format, so by default commit-sentinel **ignores** them: validation short-circuits to valid without running any rule, and the commit is reported as ignored (never silently dropped — see [cli.md](./cli.md) for how ignored commits appear in human/JSON/SARIF output).
+
+The built-in patterns are conservative — only git's exact productions match, case-sensitively, anchored at the start of the first line:
+
+| Name | Pattern | Covers |
+|------|---------|--------|
+| `merge` | `/^Merge (?:(?:remote-tracking )?branch(?:es)? \|tag \|commit \|pull request #\d+ )/` | `Merge branch '…'`, `Merge branches '…' and '…'`, `Merge remote-tracking branch '…'`, `Merge tag '…'`, `Merge commit '…'`, GitHub's `Merge pull request #N from …` |
+| `revert` | `/^(?:Revert\|Reapply) ".*"/` | `git revert`'s default message, including `Reapply "…"` (revert of a revert) |
+| `fixup` | `/^fixup! /` | `git commit --fixup` |
+| `squash` | `/^squash! /` | `git commit --squash` |
+| `amend` | `/^amend! /` | `git commit --fixup=amend:…` (git ≥ 2.32) |
+
+A hand-written header that merely resembles these (`Merge the two config loaders`, `revert "x"`) does not match and is validated normally. Explicit `revert: …` messages go through the rules as usual.
+
+Two config fields control the behavior:
+
+```typescript
+export default defineConfig({
+  extends: 'conventional',
+  // Disable the built-in patterns (default: true)
+  defaultIgnores: false,
+  // Custom predicates, additive to the defaults. The function name is
+  // reported as ValidationReport.ignoredBy ('custom' when anonymous).
+  ignores: [function wip(message) { return message.startsWith('WIP'); }],
+});
+```
+
+**Range mode:** ignored commits in a `--range`/`--base` run still produce a (valid, ignored) report entry and still count for range-scoped rules like `max-commits` — ignoring exempts a commit from per-commit message rules, not from range accounting. Merge commits never appear in ranges at all (`git log --no-merges`).
+
+**Library use:** `ResolvedConfig.ignores` carries the resolved list. Hand-built configs without an `ignores` key fall back to the built-in defaults (mirroring the `ruleRegistry` fallback); pass `ignores: []` to disable ignoring entirely.
+
+> **Security note:** an ignored commit skips *all* rules, including `agent-attribution` in the hardened preset — attribution footers inside a `fixup!` or `Revert "…"` commit are not scanned. Ignored commits are always visible in the output (`ignored`/`ignoredBy` in JSON, an `ℹ Ignored …` line in human output), so CI logs show them; set `defaultIgnores: false` if your policy requires validating every commit.
+
 ## Severity levels
 
 Each rule can be set to one of three levels:

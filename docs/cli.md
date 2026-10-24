@@ -42,6 +42,23 @@ echo "fix(api): handle timeout" | commit-sentinel --stdin
 commit-sentinel --message "feat: add login" --config path/to/config.ts
 ```
 
+## Comment stripping (`--file` / `--stdin`)
+
+`--file` and `--stdin` carry the raw, pre-cleanup editor message (e.g. `.git/COMMIT_EDITMSG` in a `commit-msg` hook), so commit-sentinel cleans them the way git would before validating:
+
+1. Everything from the scissors line (`# ------------------------ >8 ------------------------`) onward is dropped — including the verbatim diff `commit --verbose` places below it.
+2. Lines whose **first** character is `#` are removed (indented `#` lines are kept, like git).
+
+`--message` and `--commit` are post-cleanup sources and are never stripped — a stored commit that genuinely contains `#` lines (committed with `--cleanup=verbatim`) is validated as stored. A custom `core.commentChar` is not supported; only `#` is recognized.
+
+## Ignored commits
+
+Git-generated messages (merge, revert/reapply, `fixup!`/`squash!`/`amend!`) are ignored by default — validation short-circuits to valid without running any rule. See [configuration.md](./configuration.md#ignoring-auto-generated-commits) for the pattern list and the `defaultIgnores`/`ignores` config fields. Ignored commits exit `0` and are always visible in the output:
+
+- **Human**: a single informational line — `ℹ Ignored revert commit message: Revert "feat: add login"`.
+- **JSON**: the report carries `ignored: true` and `ignoredBy: "<pattern name>"` (both absent on normal reports).
+- **SARIF**: the commit's run has zero `results` and a run-level `properties` bag — `{ "ignored": true, "ignoredBy": "<pattern name>", "commitSha": "<sha>" }` (`commitSha` in range mode only).
+
 ## Exit codes
 
 | Code | Meaning |
@@ -69,7 +86,7 @@ commit-sentinel --message "feat: add login" --config path/to/config.ts
 
 ### JSON (`--json`)
 
-Full `ValidationReport` object with `valid`, `commit`, `results`, `errorCount`, `warningCount`.
+Full `ValidationReport` object with `valid`, `commit`, `results`, `errorCount`, `warningCount` (plus `ignored`/`ignoredBy` on ignored commits).
 
 ### Range output
 

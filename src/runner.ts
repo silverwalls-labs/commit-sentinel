@@ -4,6 +4,7 @@ import type { GitMeta } from './git.ts';
 import type { ActiveSeverity, RangeCommit, RuleProblem } from './rules/types.ts';
 import type { ResolvedConfig } from './config/loader.ts';
 import { builtinRules } from './rules/registry.ts';
+import { defaultIgnores, findIgnoreMatch } from './ignores.ts';
 
 /** The outcome of a single rule evaluation against a commit. */
 export interface RuleResult {
@@ -44,6 +45,16 @@ export interface ValidationReport {
    * on an empty `commit.header`.
    */
   kind?: 'range';
+  /**
+   * `true` when the message matched an ignore pattern and every rule was
+   * skipped. Absent on reports that went through the rules.
+   */
+  ignored?: boolean;
+  /**
+   * Name of the ignore pattern that matched (e.g. `'revert'`, `'merge'`,
+   * `'fixup'`, or a custom predicate's function name). Set with {@link ignored}.
+   */
+  ignoredBy?: string;
 }
 
 /**
@@ -54,6 +65,10 @@ export interface ValidationReport {
  * Rules are looked up in {@link ResolvedConfig.ruleRegistry} (built-ins plus
  * any config `plugins`), falling back to the built-in rules when the config
  * carries no registry.
+ *
+ * Messages matching an ignore pattern ({@link ResolvedConfig.ignores}, falling
+ * back to the built-in {@link defaultIgnores}) short-circuit to a valid report
+ * with {@link ValidationReport.ignored} set — no rule runs at all.
  *
  * Rules with `requiresGit: true` are silently skipped (and listed in
  * {@link ValidationReport.skippedGitRules}) when `git` is `null`.
@@ -69,6 +84,22 @@ export function validate(
   git?: GitMeta | null,
 ): ValidationReport {
   const commit = parseCommit(message);
+
+  const ignores = config.ignores ?? defaultIgnores;
+  const ignoredBy = findIgnoreMatch(message, ignores);
+  if (ignoredBy !== null) {
+    return {
+      valid: true,
+      commit,
+      results: [],
+      errorCount: 0,
+      warningCount: 0,
+      skippedGitRules: [],
+      ignored: true,
+      ignoredBy,
+    };
+  }
+
   const registry = config.ruleRegistry ?? builtinRules;
   const results: RuleResult[] = [];
   const skippedGitRules: string[] = [];

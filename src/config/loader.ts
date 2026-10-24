@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { ActiveSeverity, Rule, RuleConfig, Severity } from '../rules/types.ts';
 import type { UserConfig } from './define-config.ts';
+import { type ResolvedIgnore, resolveIgnores } from '../ignores.ts';
 import { builtinRules } from '../rules/registry.ts';
 import { getPreset, strict } from './presets.ts';
 
@@ -23,6 +24,12 @@ export interface ResolvedConfig {
    * config. When absent, the runner falls back to the built-in rules only.
    */
   ruleRegistry?: ReadonlyMap<string, Rule>;
+  /**
+   * Resolved ignore list (built-in patterns plus custom predicates). When
+   * absent — e.g. on hand-built configs — the runner falls back to the
+   * built-in default ignores; pass `[]` to disable ignoring entirely.
+   */
+  ignores?: ReadonlyArray<ResolvedIgnore>;
 }
 
 const CONFIG_FILE = 'commit-sentinel.config.ts';
@@ -125,7 +132,29 @@ function resolveConfig(
 
   validateAllRuleOptions(rules, ruleRegistry);
 
-  return { rules, ruleRegistry };
+  validateIgnoresConfig(userConfig);
+  const ignores = resolveIgnores(userConfig.defaultIgnores, userConfig.ignores);
+
+  return { rules, ruleRegistry, ignores };
+}
+
+function validateIgnoresConfig(userConfig: UserConfig): void {
+  if (userConfig.defaultIgnores !== undefined && typeof userConfig.defaultIgnores !== 'boolean') {
+    throw new Error(
+      `Invalid "defaultIgnores" in config: expected a boolean, got: ${typeof userConfig.defaultIgnores}.`,
+    );
+  }
+  if (userConfig.ignores === undefined) return;
+  if (!Array.isArray(userConfig.ignores)) {
+    throw new Error('Invalid "ignores" in config: expected an array of functions.');
+  }
+  for (const entry of userConfig.ignores) {
+    if (typeof entry !== 'function') {
+      throw new Error(
+        'Invalid entry in "ignores": expected a function (message: string) => boolean.',
+      );
+    }
+  }
 }
 
 function validateAllRuleOptions(

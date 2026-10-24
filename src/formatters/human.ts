@@ -50,6 +50,15 @@ function sanitize(text: string): string {
 export const humanFormatter: Formatter = {
   format(report: ValidationReport, options?: FormatOptions): string {
     const color = options?.color ?? hasColors();
+
+    if (report.ignored) {
+      const header = report.commit.header.length > 0 ? sanitize(report.commit.header) : '<empty>';
+      return (
+        style('ℹ', 'blue', color) +
+        ` Ignored ${sanitize(report.ignoredBy!)} commit message: ${header}\n`
+      );
+    }
+
     const lines: string[] = [];
     // Synthetic range-level reports identify themselves by range, not header.
     const rangeLabel = report.range === undefined ? null : `commit range: ${sanitize(report.range)}`;

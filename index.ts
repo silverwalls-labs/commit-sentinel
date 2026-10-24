@@ -1,5 +1,7 @@
 export {
   parseCommit,
+  cleanCommitMessage,
+  defaultIgnores,
   defineConfig,
   defineRule,
   loadConfig,
@@ -22,6 +24,8 @@ export type {
   Footer,
   GitMeta,
   CommitRecord,
+  IgnorePredicate,
+  ResolvedIgnore,
   Rule,
   RuleMeta,
   RuleContext,

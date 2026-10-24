@@ -60,7 +60,7 @@ See [docs/configuration.md](./docs/configuration.md) for config resolution, seve
 | **angular** | `build`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `test` | subject-case: error@lower, header-max-length: error@100, max-commits: error@10 |
 | **hardened** | same as conventional | **all 15 rules at error** — subject-max: 72, max 5 commits per range, header/body lines: 100, scope + body required, breaking-change footer required, signed commits, agent attribution blocked |
 
-> **Note:** `revert` (in the conventional, angular, and hardened presets) only covers explicit `revert: …` / `revert(scope): …` messages. Git's auto-generated `Revert "…"` messages do not match the `format` rule ([#24](https://github.com/silverwalls-labs/commit-sentinel/issues/24)).
+> **Note:** Git's own auto-generated messages — `Merge branch '…'`, `Revert "…"`/`Reapply "…"`, and the `fixup!`/`squash!`/`amend!` autosquash family — are **ignored by default** on every preset: validation short-circuits to valid and the commit is reported as ignored. Explicit `revert: …` / `revert(scope): …` messages are still validated normally. Opt out with `defaultIgnores: false`, or add custom patterns via `ignores` — see [docs/configuration.md](./docs/configuration.md#ignoring-auto-generated-commits). When reading a message from `--file` or `--stdin`, `#` comment lines and scissors sections are stripped first, like git's own cleanup.
 
 > **Note:** Every preset enables `max-commits` at error — 10 commits per validated range (`--range`/`--base`), tightened to 5 in hardened. Tune it via `'max-commits': ['error', { max: 20 }]` or disable with `'off'`.
 

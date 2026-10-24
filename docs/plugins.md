@@ -256,6 +256,8 @@ checkRange({ range, commits }) {
 }
 ```
 
+> **Note:** `fixup!` commits are [ignored by default](./configuration.md#ignoring-auto-generated-commits) by per-commit rules, but they still reach `checkRange` — ignoring exempts a commit from message validation, not from range accounting — so this recipe works as written.
+
 ## Recipes
 
 Ready-to-paste rules for common gaps. (Some of these are planned as built-ins — see issues [#22](https://github.com/silverwalls-labs/commit-sentinel/issues/22) and [#23](https://github.com/silverwalls-labs/commit-sentinel/issues/23) — but work as plugins today.)

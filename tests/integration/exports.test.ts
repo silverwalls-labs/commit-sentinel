@@ -19,6 +19,7 @@ describe('package entry surface', () => {
   it('exports the documented runtime API', () => {
     const functions = [
       'parseCommit',
+      'cleanCommitMessage',
       'defineConfig',
       'defineRule',
       'loadConfig',
@@ -36,6 +37,7 @@ describe('package entry surface', () => {
       assert.equal(typeof value, 'function', `${name} must be exported as a function`);
     }
     assert.ok(srcEntry.builtinRules instanceof Map, 'builtinRules must be exported as a Map');
+    assert.ok(Array.isArray(srcEntry.defaultIgnores), 'defaultIgnores must be exported as an array');
     for (const name of ['humanFormatter', 'jsonFormatter', 'sarifFormatter']) {
       const formatter = (srcEntry as Record<string, { format?: unknown }>)[name];
       assert.equal(typeof formatter.format, 'function', `${name} must export a format() function`);

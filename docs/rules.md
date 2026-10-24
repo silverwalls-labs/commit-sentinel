@@ -24,4 +24,6 @@
 
 **Git-metadata rules** (`author-email`, `signed`) require an actual git commit ref. They are automatically skipped (with a notice) when validating message text directly (`--message`, `--stdin`, `--file`).
 
+> **Note:** Ignore matching runs before any rule — git-generated messages (merge, revert/reapply, `fixup!`/`squash!`/`amend!`) skip all rules, including `format`, by default. See [configuration.md](./configuration.md#ignoring-auto-generated-commits).
+
 > **Note:** Rules execute in the order they appear in the resolved config (preset order, then user overrides). This order is deterministic but implicit — if rule ordering matters for your use case, define them explicitly in your config.

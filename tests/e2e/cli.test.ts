@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { runCli, runNode } from '../helpers/spawn.ts';
 import { gitEnv } from '../helpers/git-env.ts';
-import { createFixtureRepo } from '../helpers/fixture-repo.ts';
+import { commitFileIn, createFixtureRepo } from '../helpers/fixture-repo.ts';
 import { INDEX_URL } from '../helpers/index-url.ts';
 
 const execFileAsync = promisify(execFile);
@@ -472,6 +472,105 @@ describe('CLI e2e range with merge commits', () => {
     assert.match(result.stdout, /feat: side feature/);
     assert.match(result.stdout, /feat: second feature/);
     assert.ok(!result.stdout.includes('Merge branch'));
+  });
+});
+
+describe('CLI e2e git-generated commits (issue #24 acceptance)', () => {
+  let dir: string;
+  let previousCwd: string;
+
+  beforeEach(async () => {
+    previousCwd = process.cwd();
+    dir = await mkdtemp(join(tmpdir(), 'commit-sentinel-e2e-revert-'));
+    await execFileAsync('git', ['init', '-q', '-b', 'main'], { cwd: dir, env: gitEnv });
+    process.chdir(dir);
+  });
+
+  afterEach(async () => {
+    process.chdir(previousCwd);
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  const gitRevertHead = () =>
+    execFileAsync(
+      'git',
+      ['-c', 'user.name=Test', '-c', 'user.email=test@example.com',
+        'revert', '--no-edit', 'HEAD'],
+      { cwd: dir, env: gitEnv },
+    );
+
+  for (const preset of ['strict', 'conventional', 'angular', 'hardened']) {
+    it(`accepts a real git revert on --commit HEAD with the ${preset} preset`, async () => {
+      await commitFileIn(dir, 'a.txt', 'one\n', 'feat(core): add file\n\nAdd the fixture file.');
+      await gitRevertHead();
+      const configPath = join(dir, `${preset}.config.ts`);
+      await writeFile(configPath, `export default { extends: '${preset}' };`);
+
+      const result = await runCli(['--commit', 'HEAD', '--config', configPath]);
+      assert.equal(result.exitCode, 0);
+      assert.equal(result.stderr, '');
+      assert.match(result.stdout, /Ignored revert commit message: Revert "feat\(core\): add file"/);
+    });
+  }
+
+  it('accepts a real merge commit on the default --commit HEAD path', async () => {
+    const git = (args: string[]) => execFileAsync('git', args, { cwd: dir, env: gitEnv });
+    const commit = (message: string) =>
+      git(['-c', 'user.name=Test', '-c', 'user.email=test@example.com',
+        'commit', '--allow-empty', '-m', message]);
+
+    await commit('feat: first feature');
+    await git(['checkout', '-q', '-b', 'side']);
+    await commit('feat: side feature');
+    await git(['checkout', '-q', 'main']);
+    await commit('feat: second feature');
+    await git(['-c', 'user.name=Test', '-c', 'user.email=test@example.com',
+      'merge', '--no-edit', 'side']);
+
+    // Single-commit validation of the merge commit itself (the gap range
+    // mode never had, thanks to --no-merges).
+    const result = await runCli([]);
+    assert.equal(result.exitCode, 0);
+    assert.match(result.stdout, /Ignored merge commit message: Merge branch 'side'/);
+  });
+
+  it('strips template comments from a COMMIT_EDITMSG file', async () => {
+    await commitFileIn(dir, 'a.txt', 'one\n', 'chore: bootstrap');
+    const editMsg = join(dir, '.git', 'COMMIT_EDITMSG');
+    await writeFile(
+      editMsg,
+      'feat: add login\n\n' +
+        '# Please enter the commit message for your changes. Lines starting\n' +
+        "# with '#' will be ignored, and an empty message aborts the commit.\n" +
+        '#\n' +
+        '# On branch main\n' +
+        '# Changes to be committed:\n' +
+        '#\tmodified:   a.txt\n' +
+        '#\n',
+      'utf8',
+    );
+
+    const result = await runCli(['--file', editMsg, '--json']);
+    assert.equal(result.exitCode, 0);
+    const parsed = JSON.parse(result.stdout);
+    assert.equal(parsed.valid, true);
+    assert.equal(parsed.commit.body, null);
+  });
+
+  it('strips everything below the scissors line from stdin', async () => {
+    const scissors = '# ------------------------ >8 ------------------------';
+    const message =
+      'feat: add login\n\n' +
+      `${scissors}\n` +
+      '# Do not modify or remove the line above.\n' +
+      'diff --git a/a.txt b/a.txt\n' +
+      '+bad message that is not a comment\n';
+
+    const result = await runCli(['--stdin', '--json'], message);
+    assert.equal(result.exitCode, 0);
+    const parsed = JSON.parse(result.stdout);
+    assert.equal(parsed.valid, true);
+    assert.equal(parsed.commit.body, null);
   });
 });
 

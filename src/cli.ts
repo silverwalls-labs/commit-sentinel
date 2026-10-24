@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
+import { cleanCommitMessage } from './cleanup.ts';
 import { readCommitMessage, readGitMetaOrNull, readCommitsInRange } from './git.ts';
 import { loadConfig } from './config/loader.ts';
 import type { ResolvedConfig } from './config/loader.ts';
@@ -272,8 +273,11 @@ async function resolveMessage(values: {
   stdin: boolean;
 }): Promise<string> {
   if (values.message !== undefined) return values.message;
-  if (values.file !== undefined) return readFile(values.file, 'utf8');
-  if (values.stdin) return readStdin();
+  // File and stdin carry raw, pre-cleanup editor messages (e.g.
+  // .git/COMMIT_EDITMSG in a commit-msg hook) — strip comments the way git
+  // would. Stored commits and --message are post-cleanup and left as-is.
+  if (values.file !== undefined) return cleanCommitMessage(await readFile(values.file, 'utf8'));
+  if (values.stdin) return cleanCommitMessage(await readStdin());
   return readCommitMessage(values.commit ?? 'HEAD');
 }
 

@@ -131,6 +131,55 @@ describe('sarifFormatter', () => {
     assert.equal(sarif.runs[0].tool.driver.rules[0].id, 'no-wip');
     assert.equal(sarif.runs[0].tool.driver.rules[0].shortDescription.text, 'no-wip');
   });
+
+  it('marks an ignored commit via a run-level properties bag', () => {
+    const output = sarifFormatter.format({
+      valid: true,
+      commit: parseCommit('Revert "feat: add login"'),
+      results: [],
+      errorCount: 0,
+      warningCount: 0,
+      skippedGitRules: [],
+      ignored: true,
+      ignoredBy: 'revert',
+    });
+    const sarif = JSON.parse(output);
+    assert.equal(sarif.runs[0].results.length, 0);
+    assert.deepEqual(sarif.runs[0].properties, { ignored: true, ignoredBy: 'revert' });
+  });
+
+  it('includes the commit sha in the ignored properties bag when set', () => {
+    const output = sarifFormatter.format({
+      valid: true,
+      commit: parseCommit('fixup! feat: add login'),
+      sha: '0123456789abcdef0123456789abcdef01234567',
+      results: [],
+      errorCount: 0,
+      warningCount: 0,
+      skippedGitRules: [],
+      ignored: true,
+      ignoredBy: 'fixup',
+    });
+    const sarif = JSON.parse(output);
+    assert.deepEqual(sarif.runs[0].properties, {
+      ignored: true,
+      ignoredBy: 'fixup',
+      commitSha: '0123456789abcdef0123456789abcdef01234567',
+    });
+  });
+
+  it('attaches no run-level properties bag to non-ignored reports', () => {
+    const output = sarifFormatter.format({
+      valid: true,
+      commit: parseCommit('feat: add login'),
+      results: [],
+      errorCount: 0,
+      warningCount: 0,
+      skippedGitRules: [],
+    });
+    const sarif = JSON.parse(output);
+    assert.ok(!('properties' in sarif.runs[0]));
+  });
 });
 
 describe('sarifFormatter range reports', () => {
