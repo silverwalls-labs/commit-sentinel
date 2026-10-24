@@ -324,6 +324,13 @@ describe('formatter fuzz', () => {
 });
 
 describe('cleanCommitMessage fuzz', () => {
+  // Scissors mode keeps # lines above the cut verbatim, so the comment and
+  // idempotence properties only hold for messages without a scissors line.
+  const SCISSORS_RE = /^# -{24} >8 -{24}$/;
+  const noScissorsArb = fc
+    .string()
+    .filter((m: string) => !m.split(/\r?\n/).some((line) => SCISSORS_RE.test(line)));
+
   it('never throws and always returns a string', () => {
     fc.assert(
       fc.property(fc.string(), (message: string) => {
@@ -333,9 +340,9 @@ describe('cleanCommitMessage fuzz', () => {
     );
   });
 
-  it('never leaves a column-0 comment line in the output', () => {
+  it('never leaves a column-0 comment line when no scissors line is present', () => {
     fc.assert(
-      fc.property(fc.string(), (message: string) => {
+      fc.property(noScissorsArb, (message: string) => {
         const cleaned = cleanCommitMessage(message);
         for (const line of cleaned.split('\n')) {
           assert.ok(!line.startsWith('#'));
@@ -345,9 +352,9 @@ describe('cleanCommitMessage fuzz', () => {
     );
   });
 
-  it('is idempotent', () => {
+  it('is idempotent when no scissors line is present', () => {
     fc.assert(
-      fc.property(fc.string(), (message: string) => {
+      fc.property(noScissorsArb, (message: string) => {
         const once = cleanCommitMessage(message);
         assert.equal(cleanCommitMessage(once), once);
       }),

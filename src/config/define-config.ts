@@ -1,4 +1,5 @@
 import type { Rule, RuleConfig } from '../rules/types.ts';
+import type { IgnorePredicate } from '../ignores.ts';
 
 /**
  * User-facing configuration for commit-sentinel.
@@ -64,8 +65,9 @@ export interface UserConfig {
    * Each receives the full raw commit message and returns `true` to skip
    * validation entirely. Ignored commits are reported distinctly (see
    * `ValidationReport.ignored` / `ignoredBy`), never silently dropped.
+   * Predicate names must not collide with the built-in pattern names.
    */
-  ignores?: ReadonlyArray<(message: string) => boolean>;
+  ignores?: ReadonlyArray<IgnorePredicate>;
 }
 
 /**

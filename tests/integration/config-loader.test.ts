@@ -672,6 +672,17 @@ describe('loadConfig', () => {
         /Invalid entry in "ignores": expected a function/,
       );
     });
+
+    it('throws when a custom predicate name collides with a built-in pattern', async () => {
+      await writeFile(
+        join(dir, 'commit-sentinel.config.ts'),
+        `export default { ignores: [function merge(message) { return message.startsWith('WIP'); }] };`,
+      );
+      await assert.rejects(
+        () => loadConfig(dir),
+        /Custom ignore "merge" conflicts with a built-in ignore pattern of the same name\./,
+      );
+    });
   });
 
   describe('severity and shape validation', () => {

@@ -42,6 +42,13 @@ describe('cleanCommitMessage', () => {
     assert.equal(cleanCommitMessage(message), 'feat: add login\n');
   });
 
+  it('keeps column-0 # lines above the scissors line (scissors cleanup mode)', () => {
+    // git's cleanup=scissors only truncates — comment lines above the cut are
+    // part of the message and must survive.
+    const message = `feat: add\n\n#123 was the root cause\n${SCISSORS}\ndiff --git a/a.ts b/a.ts`;
+    assert.equal(cleanCommitMessage(message), 'feat: add\n\n#123 was the root cause');
+  });
+
   it('does not treat an inexact dash count as scissors', () => {
     const almost = '# ----------------------- >8 ------------------------';
     assert.equal(cleanCommitMessage(`feat: add\n${almost}\nbody`), 'feat: add\nbody');
@@ -62,8 +69,8 @@ describe('cleanCommitMessage', () => {
     );
   });
 
-  it('is idempotent', () => {
-    const message = `feat: add\n\n# comment\nBody.\n${SCISSORS}\ndiff`;
+  it('is idempotent for messages without a scissors line', () => {
+    const message = 'feat: add\n\n# comment\nBody.';
     const once = cleanCommitMessage(message);
     assert.equal(cleanCommitMessage(once), once);
   });

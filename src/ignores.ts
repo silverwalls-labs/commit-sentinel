@@ -40,22 +40,29 @@ function headerIgnore(name: string, re: RegExp): ResolvedIgnore {
  *
  * | Name | Matches |
  * |---|---|
- * | `merge` | `Merge branch '…'`, `Merge branches '…' and '…'`, `Merge remote-tracking branch '…'`, `Merge tag '…'`, `Merge commit '…'`, `Merge pull request #N …` |
+ * | `merge` | `Merge branch '…'`, `Merge branches '…' and '…'`, `Merge remote-tracking branch '…'`, `Merge tag '…'`, `Merge commit '…'`, `Merge pull request #N from …` |
  * | `revert` | `Revert "…"` and `Reapply "…"` (git's revert-of-a-revert) |
  * | `fixup` | `fixup! …` (autosquash) |
  * | `squash` | `squash! …` (autosquash) |
  * | `amend` | `amend! …` (autosquash, git ≥ 2.32) |
  *
+ * The merge patterns require git's quoted ref name (and GitHub's `from`), and
+ * the revert pattern is anchored to the end of the header, so hand-written
+ * prose like `Merge branch protection rules` or `Revert "flag" rollout` is
+ * still validated.
+ *
  * Disable via `defaultIgnores: false` in the config; add custom predicates
  * via `ignores`.
  */
 export const defaultIgnores: ReadonlyArray<ResolvedIgnore> = [
-  headerIgnore('merge', /^Merge (?:(?:remote-tracking )?branch(?:es)? |tag |commit |pull request #\d+ )/),
-  headerIgnore('revert', /^(?:Revert|Reapply) ".*"/),
+  headerIgnore('merge', /^Merge (?:(?:remote-tracking )?branch(?:es)? '|tag '|commit '|pull request #\d+ from )/),
+  headerIgnore('revert', /^(?:Revert|Reapply) ".*"$/),
   headerIgnore('fixup', /^fixup! /),
   headerIgnore('squash', /^squash! /),
   headerIgnore('amend', /^amend! /),
 ];
+
+const builtinIgnoreNames = new Set(defaultIgnores.map((ignore) => ignore.name));
 
 /**
  * Combine the built-in ignores with user-supplied predicates.
@@ -67,6 +74,9 @@ export const defaultIgnores: ReadonlyArray<ResolvedIgnore> = [
  * functions.
  * @returns The resolved ignore list (empty when defaults are disabled and no
  * custom predicates are given).
+ * @throws When a custom predicate's name collides with a built-in pattern
+ * name — mirroring the plugin-rule collision check — so `ignoredBy` in the
+ * output always distinguishes custom entries from the built-ins.
  */
 export function resolveIgnores(
   defaultIgnoresEnabled: boolean | undefined,
@@ -74,7 +84,13 @@ export function resolveIgnores(
 ): ReadonlyArray<ResolvedIgnore> {
   const resolved: ResolvedIgnore[] = defaultIgnoresEnabled === false ? [] : [...defaultIgnores];
   for (const predicate of custom ?? []) {
-    resolved.push({ name: predicate.name !== '' ? predicate.name : 'custom', test: predicate });
+    const name = predicate.name !== '' ? predicate.name : 'custom';
+    if (builtinIgnoreNames.has(name)) {
+      throw new Error(
+        `Custom ignore "${name}" conflicts with a built-in ignore pattern of the same name.`,
+      );
+    }
+    resolved.push({ name, test: predicate });
   }
   return resolved;
 }

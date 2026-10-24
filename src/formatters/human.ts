@@ -53,9 +53,11 @@ export const humanFormatter: Formatter = {
 
     if (report.ignored) {
       const header = report.commit.header.length > 0 ? sanitize(report.commit.header) : '<empty>';
+      // Tolerate hand-built reports without ignoredBy, like the header fallback.
+      const label = report.ignoredBy ? `${sanitize(report.ignoredBy)} ` : '';
       return (
         style('ℹ', 'blue', color) +
-        ` Ignored ${sanitize(report.ignoredBy!)} commit message: ${header}\n`
+        ` Ignored ${label}commit message: ${header}\n`
       );
     }
 

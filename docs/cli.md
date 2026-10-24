@@ -46,10 +46,10 @@ commit-sentinel --message "feat: add login" --config path/to/config.ts
 
 `--file` and `--stdin` carry the raw, pre-cleanup editor message (e.g. `.git/COMMIT_EDITMSG` in a `commit-msg` hook), so commit-sentinel cleans them the way git would before validating:
 
-1. Everything from the scissors line (`# ------------------------ >8 ------------------------`) onward is dropped — including the verbatim diff `commit --verbose` places below it.
-2. Lines whose **first** character is `#` are removed (indented `#` lines are kept, like git).
+- When a scissors line (`# ------------------------ >8 ------------------------`) is present (`cleanup=scissors` mode), everything from it onward is dropped — including the verbatim diff `commit --verbose` places below it — and the text above is kept **verbatim**, `#` lines included, exactly like git.
+- Otherwise (default cleanup), lines whose **first** character is `#` are removed (indented `#` lines are kept, like git).
 
-`--message` and `--commit` are post-cleanup sources and are never stripped — a stored commit that genuinely contains `#` lines (committed with `--cleanup=verbatim`) is validated as stored. A custom `core.commentChar` is not supported; only `#` is recognized.
+`--message` and `--commit` are post-cleanup sources and are never stripped — a stored commit that genuinely contains `#` lines (committed with `--cleanup=verbatim` or `-F`) is validated as stored. For the same reason, validate stored commits with `--commit`/`--range` rather than piping `git log` output into `--stdin`, which would strip their `#` lines. A custom `core.commentChar` is not supported; only `#` is recognized.
 
 ## Ignored commits
 

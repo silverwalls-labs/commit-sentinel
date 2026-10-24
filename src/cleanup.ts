@@ -17,12 +17,14 @@
 const SCISSORS_RE = /^# -{24} >8 -{24}$/;
 
 /**
- * Clean a raw editor commit message the way git's default cleanup would:
+ * Clean a raw editor commit message the way git's own cleanup would:
  *
- * 1. Truncate at the scissors line (`# ------------------------ >8 ------------------------`),
- *    dropping it and everything after (the verbatim diff in `cleanup=scissors` mode).
- * 2. Drop lines whose first character is `#` (column 0 only, like git —
- *    indented `#` lines are kept).
+ * - When a scissors line (`# ------------------------ >8 ------------------------`)
+ *   is present (`cleanup=scissors` mode), drop it and everything after (the
+ *   verbatim diff) and keep the text above **verbatim** — git does not strip
+ *   `#` lines in scissors mode.
+ * - Otherwise (default cleanup), drop lines whose first character is `#`
+ *   (column 0 only, like git — indented `#` lines are kept).
  *
  * Whitespace is left untouched; the parser already tolerates blank lines.
  *
@@ -32,6 +34,8 @@ const SCISSORS_RE = /^# -{24} >8 -{24}$/;
 export function cleanCommitMessage(message: string): string {
   const lines = message.split(/\r?\n/);
   const scissorsIndex = lines.findIndex((line) => SCISSORS_RE.test(line));
-  const kept = scissorsIndex === -1 ? lines : lines.slice(0, scissorsIndex);
-  return kept.filter((line) => !line.startsWith('#')).join('\n');
+  if (scissorsIndex !== -1) {
+    return lines.slice(0, scissorsIndex).join('\n');
+  }
+  return lines.filter((line) => !line.startsWith('#')).join('\n');
 }

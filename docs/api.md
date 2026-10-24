@@ -61,6 +61,6 @@ console.log(report.results);   // []
 
 `ResolvedConfig.ignores` carries the resolved list (`loadConfig()` builds it from the config's `defaultIgnores`/`ignores` fields — see [configuration.md](./configuration.md#ignoring-auto-generated-commits)). When the key is absent — e.g. on a hand-built config — `validate()` falls back to the built-in `defaultIgnores` (exported, a `ReadonlyArray<ResolvedIgnore>` of `{ name, test }` entries); pass `ignores: []` to disable ignoring entirely.
 
-`cleanCommitMessage(message)` is also exported: it strips git editor comments (column-0 `#` lines) and scissors sections from a raw message, the way the CLI does for `--file`/`--stdin`.
+`cleanCommitMessage(message)` is also exported: it cleans a raw editor message the way the CLI does for `--file`/`--stdin` — truncating at the scissors line when one is present (keeping the text above verbatim, like git's `cleanup=scissors`), otherwise stripping column-0 `#` comment lines.
 
 Also exported: `defineConfig` and `defineRule` for custom configs and rules — see [plugins.md](./plugins.md) for the custom-rule guide — as well as `getPreset`, `builtinRules`, the `IgnorePredicate`/`ResolvedIgnore` types, and the `human`, `json`, and `sarif` formatters.

@@ -126,6 +126,22 @@ describe('humanFormatter', () => {
     assert.match(output, /Ignored revert commit message/);
   });
 
+  it('tolerates a hand-built ignored report without ignoredBy', () => {
+    const output = humanFormatter.format(
+      {
+        valid: true,
+        commit: parseCommit('Revert "feat: add login"'),
+        results: [],
+        errorCount: 0,
+        warningCount: 0,
+        skippedGitRules: [],
+        ignored: true,
+      },
+      { color: false },
+    );
+    assert.equal(output, 'ℹ Ignored commit message: Revert "feat: add login"\n');
+  });
+
   it('labels an empty ignored header as <empty>', () => {
     const output = humanFormatter.format(
       {
