@@ -2,10 +2,12 @@
  * Commit-message cleanup mirroring git's own behavior for editor input.
  *
  * `--file .git/COMMIT_EDITMSG` and `--stdin` carry the raw, pre-cleanup
- * message that git would still clean before committing — including `#`
- * template comments and, in `cleanup=scissors` mode, the full diff below the
- * scissors line. Stored commits (`--commit`) and `--message` are post-cleanup
- * sources and are never stripped.
+ * message that git's editor flow would still clean before committing —
+ * including `#` template comments and, in `cleanup=scissors` mode, the full
+ * diff below the scissors line. Stored commits (`--commit`) and `--message`
+ * are post-cleanup sources and are never stripped. (Note: `git commit -F`
+ * keeps `#` lines by default — the `whitespace` cleanup — so `--file` follows
+ * the editor flow, not `-F`.)
  *
  * Only the default comment character `#` is supported; a custom
  * `core.commentChar` is a documented limitation.
