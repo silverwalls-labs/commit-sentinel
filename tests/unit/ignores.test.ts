@@ -127,6 +127,24 @@ describe('resolveIgnores', () => {
       /Custom ignore "revert" conflicts with a built-in ignore pattern/,
     );
   });
+
+  it('throws when two custom predicates share a name', () => {
+    function noWip(message: string): boolean {
+      return message.startsWith('WIP');
+    }
+    const noWipToo = noWip;
+    assert.throws(
+      () => resolveIgnores(false, [noWip, noWipToo]),
+      /Duplicate custom ignore "noWip"/,
+    );
+  });
+
+  it('throws when two anonymous predicates both fall back to "custom"', () => {
+    assert.throws(
+      () => resolveIgnores(false, [(m: string) => m === 'a', (m: string) => m === 'b']),
+      /Duplicate custom ignore "custom"/,
+    );
+  });
 });
 
 describe('findIgnoreMatch', () => {

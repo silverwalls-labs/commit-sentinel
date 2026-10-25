@@ -57,7 +57,7 @@ export default defineConfig({
 });
 ```
 
-A custom predicate whose name collides with a built-in pattern name (`merge`, `revert`, `fixup`, `squash`, `amend`) fails at config load — same convention as plugin rule names — so `ignoredBy` always distinguishes custom entries from the built-ins.
+A custom predicate whose name collides with a built-in pattern name (`merge`, `revert`, `fixup`, `squash`, `amend`) — or with another custom predicate's name — fails at config load, same convention as plugin rule names, so `ignoredBy` always identifies exactly one entry.
 
 **Range mode:** ignored commits in a `--range`/`--base` run still produce a (valid, ignored) report entry and still count for range-scoped rules like `max-commits` — ignoring exempts a commit from per-commit message rules, not from range accounting. Merge commits never appear in ranges at all (`git log --no-merges`).
 

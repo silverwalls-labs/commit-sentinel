@@ -75,14 +75,14 @@ const builtinIgnoreNames = new Set(defaultIgnores.map((ignore) => ignore.name));
  * @returns The resolved ignore list (empty when defaults are disabled and no
  * custom predicates are given).
  * @throws When a custom predicate's name collides with a built-in pattern
- * name — mirroring the plugin-rule collision check — so `ignoredBy` in the
- * output always distinguishes custom entries from the built-ins.
+ * name or with another custom predicate.
  */
 export function resolveIgnores(
   defaultIgnoresEnabled: boolean | undefined,
   custom: ReadonlyArray<IgnorePredicate> | undefined,
 ): ReadonlyArray<ResolvedIgnore> {
   const resolved: ResolvedIgnore[] = defaultIgnoresEnabled === false ? [] : [...defaultIgnores];
+  const customNames = new Set<string>();
   for (const predicate of custom ?? []) {
     const name = predicate.name !== '' ? predicate.name : 'custom';
     if (builtinIgnoreNames.has(name)) {
@@ -90,6 +90,12 @@ export function resolveIgnores(
         `Custom ignore "${name}" conflicts with a built-in ignore pattern of the same name.`,
       );
     }
+    if (customNames.has(name)) {
+      throw new Error(
+        `Duplicate custom ignore "${name}": predicate names must be unique.`,
+      );
+    }
+    customNames.add(name);
     resolved.push({ name, test: predicate });
   }
   return resolved;

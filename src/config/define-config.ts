@@ -65,7 +65,8 @@ export interface UserConfig {
    * Each receives the full raw commit message and returns `true` to skip
    * validation entirely. Ignored commits are reported distinctly (see
    * `ValidationReport.ignored` / `ignoredBy`), never silently dropped.
-   * Predicate names must not collide with the built-in pattern names.
+   * Predicate names must be unique and must not collide with the built-in
+   * pattern names.
    */
   ignores?: ReadonlyArray<IgnorePredicate>;
 }
