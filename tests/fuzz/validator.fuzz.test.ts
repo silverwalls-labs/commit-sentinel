@@ -38,11 +38,14 @@ const allRulesConfig: ResolvedConfig = {
     'subject-max-length': { severity: 'warn', options: { max: 72 } },
     'subject-min-length': { severity: 'error', options: { min: 1 } },
     'subject-case': { severity: 'warn', options: { case: 'lower' } },
+    'subject-no-trailing-period': { severity: 'error', options: {} },
     'body-required': { severity: 'warn', options: {} },
+    'body-min-length': { severity: 'warn', options: { min: 20 } },
     'body-max-line-length': { severity: 'warn', options: { max: 100 } },
     'breaking-change': { severity: 'warn', options: { requireFooter: true } },
     'signed': { severity: 'error', options: {} },
     'author-email': { severity: 'error', options: { pattern: '^.+@.+$' } },
+    'agent-attribution': { severity: 'error', options: {} },
   },
 };
 

@@ -3,10 +3,10 @@ import type { RuleConfig } from '../rules/types.ts';
 /** A preset is a named collection of default rule configurations. */
 export type Preset = Record<string, RuleConfig>;
 
-/** Minimal preset: only `feat`, `fix`, and `chore` types allowed. */
+/** Minimal preset: only `feat`, `fix`, `chore`, and `revert` types allowed. */
 export const strict: Preset = {
   'format': 'error',
-  'type-enum': ['error', { allowed: ['feat', 'fix', 'chore'] }],
+  'type-enum': ['error', { allowed: ['feat', 'fix', 'chore', 'revert'] }],
   'header-max-length': ['warn', { max: 100 }],
   'subject-min-length': ['error', { min: 1 }],
   'max-commits': ['error', { max: 10 }],
@@ -27,10 +27,11 @@ export const conventional: Preset = {
   'header-max-length': ['warn', { max: 100 }],
   'subject-min-length': ['error', { min: 1 }],
   'subject-case': ['warn', { case: 'lower' }],
+  'subject-no-trailing-period': 'error',
   'max-commits': ['error', { max: 10 }],
 };
 
-/** Angular commit guidelines preset: stricter casing and header length. */
+/** Angular commit guidelines preset: stricter casing and 100-char limit on every line. */
 export const angular: Preset = {
   'format': 'error',
   'type-enum': [
@@ -42,6 +43,8 @@ export const angular: Preset = {
   'header-max-length': ['error', { max: 100 }],
   'subject-min-length': ['error', { min: 1 }],
   'subject-case': ['error', { case: 'lower' }],
+  'subject-no-trailing-period': 'error',
+  'body-max-line-length': ['error', { max: 100 }],
   'max-commits': ['error', { max: 10 }],
 };
 
@@ -68,8 +71,10 @@ export const hardened: Preset = {
   'subject-max-length': ['error', { max: 72 }],
   'subject-min-length': ['error', { min: 1 }],
   'subject-case': ['error', { case: 'lower' }],
+  'subject-no-trailing-period': 'error',
   'header-max-length': ['error', { max: 100 }],
   'body-required': 'error',
+  'body-min-length': ['error', { min: 20 }],
   'body-max-line-length': ['error', { max: 100 }],
   'breaking-change': ['error', { requireFooter: true }],
   'author-email': 'error',

@@ -73,13 +73,31 @@ describe('CLI run()', () => {
     assert.equal(result.exitCode, 0);
   });
 
-  it('rejects revert type in the strict preset', async () => {
+  it('accepts revert type in the strict preset', async () => {
     const configPath = join(dir, 'strict.config.ts');
     await writeFile(configPath, `export default { extends: 'strict' };`);
 
     const result = await run(['--message', 'revert: undo the login change', '--config', configPath]);
+    assert.equal(result.exitCode, 0);
+    assert.equal(result.stderr, '');
+  });
+
+  it('rejects a trailing period in the conventional preset', async () => {
+    const configPath = join(dir, 'conventional.config.ts');
+    await writeFile(configPath, `export default { extends: 'conventional' };`);
+
+    const result = await run(['--message', 'feat: add login.', '--config', configPath]);
     assert.equal(result.exitCode, 2);
-    assert.match(result.stderr, /Unsupported commit type "revert"/);
+    assert.match(result.stderr, /subject-no-trailing-period/);
+  });
+
+  it('rejects a too-short body in the hardened preset', async () => {
+    const configPath = join(dir, 'hardened.config.ts');
+    await writeFile(configPath, `export default { extends: 'hardened' };`);
+
+    const result = await run(['--message', 'feat(api): add login\n\nTiny body.', '--config', configPath]);
+    assert.equal(result.exitCode, 2);
+    assert.match(result.stderr, /body-min-length/);
   });
 
   it('exits 2 for invalid message', async () => {

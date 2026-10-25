@@ -55,10 +55,10 @@ See [docs/configuration.md](./docs/configuration.md) for config resolution, seve
 
 | Preset | Types | Notable defaults |
 |--------|-------|-----------------|
-| **strict** (default) | `feat`, `fix`, `chore` | header-max-length: warn@100, max-commits: error@10 |
-| **conventional** | `feat`, `fix`, `build`, `ci`, `docs`, `perf`, `refactor`, `style`, `test`, `chore`, `revert` | subject-case: warn@lower, header-max-length: warn@100, max-commits: error@10 |
-| **angular** | `build`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `test` | subject-case: error@lower, header-max-length: error@100, max-commits: error@10 |
-| **hardened** | same as conventional | **all 15 rules at error** — subject-max: 72, max 5 commits per range, header/body lines: 100, scope + body required, breaking-change footer required, signed commits, agent attribution blocked |
+| **strict** (default) | `feat`, `fix`, `chore`, `revert` | header-max-length: warn@100, max-commits: error@10 |
+| **conventional** | `feat`, `fix`, `build`, `ci`, `docs`, `perf`, `refactor`, `style`, `test`, `chore`, `revert` | subject-case: warn@lower, subject-no-trailing-period: error, header-max-length: warn@100, max-commits: error@10 |
+| **angular** | `build`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `test` | subject-case: error@lower, subject-no-trailing-period: error, header-max-length: error@100, body-max-line-length: error@100, max-commits: error@10 |
+| **hardened** | same as conventional | **all 17 rules at error** — subject-max: 72, no trailing period, max 5 commits per range, header/body lines: 100, scope + body required, body min 20 chars, breaking-change footer required, signed commits, agent attribution blocked |
 
 > **Note:** Git's own auto-generated messages — `Merge branch '…'`, `Revert "…"`/`Reapply "…"`, and the `fixup!`/`squash!`/`amend!` autosquash family — are **ignored by default** on every preset: validation short-circuits to valid and the commit is reported as ignored. Explicit `revert: …` / `revert(scope): …` messages are still validated normally. Opt out with `defaultIgnores: false`, or add custom patterns via `ignores` — see [docs/configuration.md](./docs/configuration.md#ignoring-auto-generated-commits). When reading a message from `--file` or `--stdin`, `#` comment lines and scissors sections are stripped first, like git's own cleanup.
 
@@ -71,7 +71,7 @@ See [docs/configuration.md](./docs/configuration.md) for config resolution, seve
 | Guide | Contents |
 |-------|----------|
 | [Configuration](./docs/configuration.md) | Config resolution, severity levels, custom rules |
-| [Rules](./docs/rules.md) | All 15 built-in rules, options, and defaults |
+| [Rules](./docs/rules.md) | All 17 built-in rules, options, and defaults |
 | [CLI reference](./docs/cli.md) | Options, examples, exit codes, output formats |
 | [Integrations](./docs/integrations.md) | Husky, lefthook, CI/CD pipelines |
 | [API](./docs/api.md) | Programmatic usage — `parseCommit`, `validate`, `loadConfig` |

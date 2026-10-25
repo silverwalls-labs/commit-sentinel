@@ -28,7 +28,7 @@ commit-sentinel.config.ts (user config)
 - **Git-metadata rules** (`author-email`, `signed`) declare `requiresGit: true` and are skipped when git metadata is unavailable
 - **Config** loaded via native `import()` from `commit-sentinel.config.ts` — no config loaders
 - **Custom rules:** `plugins: Rule[]` in config, merged with builtins into `ResolvedConfig.ruleRegistry`; auto-enabled at `meta.defaultSeverity`, overridable via `rules`; name collisions and unknown rule names throw at load
-- **Presets:** strict (default), conventional, angular, hardened (all 15 rules at error)
+- **Presets:** strict (default), conventional, angular, hardened (all 17 rules at error)
 - **Version:** single source of truth in `src/version.ts` — must match `package.json` (checked by `scripts/check-version.ts`)
 
 ## Test Categories

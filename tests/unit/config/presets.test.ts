@@ -36,11 +36,21 @@ describe('presets', () => {
     }
   });
 
-  it('strict preset stays minimal without revert', () => {
+  it('strict preset allows the revert type', () => {
     const typeEnum = strict['type-enum'];
     assert.ok(Array.isArray(typeEnum));
     const [, opts] = typeEnum as [string, { allowed: string[] }];
-    assert.ok(!opts.allowed.includes('revert'));
+    assert.ok(opts.allowed.includes('revert'));
+  });
+
+  it('conventional and angular presets reject trailing periods at error', () => {
+    for (const preset of [conventional, angular]) {
+      assert.equal(preset['subject-no-trailing-period'], 'error');
+    }
+  });
+
+  it('angular preset caps body lines at 100', () => {
+    assert.deepEqual(angular['body-max-line-length'], ['error', { max: 100 }]);
   });
 
   it('every preset enables max-commits at error', () => {

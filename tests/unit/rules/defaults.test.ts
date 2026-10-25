@@ -5,6 +5,7 @@ import { getRule } from '../../../src/rules/registry.ts';
 import { subjectMaxLengthRule } from '../../../src/rules/subject-max-length.ts';
 import { subjectMinLengthRule } from '../../../src/rules/subject-min-length.ts';
 import { headerMaxLengthRule } from '../../../src/rules/header-max-length.ts';
+import { bodyMinLengthRule } from '../../../src/rules/body-min-length.ts';
 import { bodyMaxLineLengthRule } from '../../../src/rules/body-max-line-length.ts';
 import { authorEmailRule } from '../../../src/rules/author-email.ts';
 import { breakingChangeRule } from '../../../src/rules/breaking-change.ts';
@@ -47,6 +48,16 @@ describe('rule option defaults', () => {
     });
     assert.equal(problems.length, 1);
     assert.match(problems[0]!.message, /100/);
+  });
+
+  it('body-min-length defaults to 20', () => {
+    const problems = bodyMinLengthRule.validate({
+      commit: parseCommit('feat: add\n\nTiny body.'),
+      git: null,
+      options: {},
+    });
+    assert.equal(problems.length, 1);
+    assert.match(problems[0]!.message, /at least 20/);
   });
 
   it('body-max-line-length defaults to 100', () => {

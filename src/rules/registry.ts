@@ -6,8 +6,10 @@ import { scopeRequiredRule } from './scope-required.ts';
 import { subjectMaxLengthRule } from './subject-max-length.ts';
 import { subjectMinLengthRule } from './subject-min-length.ts';
 import { subjectCaseRule } from './subject-case.ts';
+import { subjectNoTrailingPeriodRule } from './subject-no-trailing-period.ts';
 import { headerMaxLengthRule } from './header-max-length.ts';
 import { bodyRequiredRule } from './body-required.ts';
+import { bodyMinLengthRule } from './body-min-length.ts';
 import { bodyMaxLineLengthRule } from './body-max-line-length.ts';
 import { breakingChangeRule } from './breaking-change.ts';
 import { authorEmailRule } from './author-email.ts';
@@ -15,7 +17,7 @@ import { signedRule } from './signed.ts';
 import { agentAttributionRule } from './agent-attribution.ts';
 import { maxCommitsRule } from './max-commits.ts';
 
-/** All 15 built-in rules, keyed by name. */
+/** All 17 built-in rules, keyed by name. */
 export const builtinRules: ReadonlyMap<string, Rule> = new Map<string, Rule>([
   ['format', formatRule],
   ['type-enum', typeEnumRule],
@@ -24,8 +26,10 @@ export const builtinRules: ReadonlyMap<string, Rule> = new Map<string, Rule>([
   ['subject-max-length', subjectMaxLengthRule],
   ['subject-min-length', subjectMinLengthRule],
   ['subject-case', subjectCaseRule],
+  ['subject-no-trailing-period', subjectNoTrailingPeriodRule],
   ['header-max-length', headerMaxLengthRule],
   ['body-required', bodyRequiredRule],
+  ['body-min-length', bodyMinLengthRule],
   ['body-max-line-length', bodyMaxLineLengthRule],
   ['breaking-change', breakingChangeRule],
   ['author-email', authorEmailRule],
