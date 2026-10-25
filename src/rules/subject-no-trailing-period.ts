@@ -1,5 +1,8 @@
 import { defineRule } from './define-rule.ts';
 
+/** Sentence-ending punctuation: `.`, `…` (ellipsis), `．` (fullwidth), `。` (ideographic). */
+const TRAILING_STOP_RE = /[.．。…]$/;
+
 export const subjectNoTrailingPeriodRule = defineRule({
   meta: {
     name: 'subject-no-trailing-period',
@@ -9,7 +12,7 @@ export const subjectNoTrailingPeriodRule = defineRule({
     defaultSeverity: 'error',
   },
   validate({ commit }) {
-    if (commit.subject === null || !commit.subject.endsWith('.')) return [];
+    if (commit.subject === null || !TRAILING_STOP_RE.test(commit.subject)) return [];
     return [
       {
         message: 'Subject must not end with a period.',

@@ -31,6 +31,22 @@ describe('subject-no-trailing-period rule', () => {
     assert.equal(problems.length, 1);
   });
 
+  it('rejects subject ending with a Unicode ellipsis', () => {
+    assert.equal(run('feat: add login…').length, 1);
+  });
+
+  it('rejects subject ending with a fullwidth period', () => {
+    assert.equal(run('feat: add login．').length, 1);
+  });
+
+  it('rejects subject ending with an ideographic full stop', () => {
+    assert.equal(run('feat: add login。').length, 1);
+  });
+
+  it('accepts Unicode stop characters in the middle of the subject', () => {
+    assert.equal(run('feat: bump v2．0 of api').length, 0);
+  });
+
   it('skips when subject is null', () => {
     assert.equal(run('bad message').length, 0);
   });
