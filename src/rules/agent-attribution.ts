@@ -1,4 +1,5 @@
 import { defineRule } from './define-rule.ts';
+import { isStringArray } from './option-validators.ts';
 
 interface AgentAttributionOptions {
   allow?: string[];
@@ -86,10 +87,6 @@ const KNOWN_AGENTS: ReadonlyMap<string, AgentEntry> = new Map([
 ]);
 
 export const KNOWN_AGENT_IDS: ReadonlySet<string> = new Set(KNOWN_AGENTS.keys());
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === 'string');
-}
 
 export const agentAttributionRule = defineRule<AgentAttributionOptions>({
   meta: {

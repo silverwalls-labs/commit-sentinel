@@ -1,4 +1,5 @@
 import { defineRule } from './define-rule.ts';
+import { isStringArray } from './option-validators.ts';
 import { FOOTER_LINE_RE } from '../parser.ts';
 
 interface FooterLeadingBlankOptions {
@@ -24,10 +25,6 @@ const KNOWN_TRAILER_TOKENS: ReadonlySet<string> = new Set([
   'breaking change',
   'breaking-change',
 ]);
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === 'string');
-}
 
 function isTrailerLike(line: string, extraTokens: ReadonlySet<string>): boolean {
   const match = FOOTER_LINE_RE.exec(line);

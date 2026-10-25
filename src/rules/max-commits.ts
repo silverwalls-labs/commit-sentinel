@@ -1,4 +1,5 @@
 import { defineRule } from './define-rule.ts';
+import { validatePositiveInteger } from './option-validators.ts';
 
 interface MaxCommitsOptions {
   max?: number;
@@ -23,11 +24,7 @@ export const maxCommitsRule = defineRule<MaxCommitsOptions>({
     defaultSeverity: 'error',
   },
   validateOptions(options) {
-    if (options.max === undefined) return [];
-    if (typeof options.max !== 'number' || !Number.isInteger(options.max) || options.max < 1) {
-      return [{ message: `"max" must be a positive integer, got: ${JSON.stringify(options.max)}.` }];
-    }
-    return [];
+    return validatePositiveInteger('max', options.max);
   },
   // Range-scoped: per-commit validation never reports anything.
   validate() {
