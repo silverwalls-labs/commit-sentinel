@@ -27,6 +27,12 @@ describe('sarifFormatter', () => {
     assert.equal(sarif.runs[0].results.length, 1);
     assert.equal(sarif.runs[0].results[0].level, 'error');
     assert.equal(sarif.runs[0].results[0].ruleId, 'format');
+    const loc = sarif.runs[0].results[0].locations;
+    assert.ok(Array.isArray(loc));
+    assert.equal(loc.length, 1);
+    assert.equal(loc[0].physicalLocation.artifactLocation.uri, '');
+    assert.equal(loc[0].physicalLocation.artifactLocation.uriBaseId, '%SRCROOT%');
+    assert.equal(loc[0].message.text, 'commit: bad');
   });
 
   it('maps warnings correctly', () => {
@@ -46,6 +52,7 @@ describe('sarifFormatter', () => {
     });
     const sarif = JSON.parse(output);
     assert.equal(sarif.runs[0].results[0].level, 'warning');
+    assert.equal(sarif.runs[0].results[0].locations[0].message.text, 'commit: feat: Add Login');
   });
 
   it('produces empty results for valid commit', () => {
@@ -87,6 +94,8 @@ describe('sarifFormatter', () => {
     assert.equal(sarif.runs[0].results.length, 3);
     for (const result of sarif.runs[0].results) {
       assert.equal(result.ruleIndex, 0);
+      assert.ok(Array.isArray(result.locations));
+      assert.equal(result.locations.length, 1);
     }
   });
 
@@ -110,6 +119,7 @@ describe('sarifFormatter', () => {
     const result = sarif.runs[0].results[0];
     assert.equal(result.properties.commitSha, '0123456789abcdef0123456789abcdef01234567');
     assert.match(result.message.text, /^\[01234567\] Bad format\.$/);
+    assert.equal(result.locations[0].message.text, 'commit: bad');
   });
 
   it('falls back to the rule name when the rule is not a builtin', () => {
@@ -187,6 +197,7 @@ describe('sarifFormatter range reports', () => {
     const output = sarifFormatter.format({
       valid: false,
       commit: parseCommit(''),
+      kind: 'range',
       range: 'main..HEAD',
       results: [
         {
@@ -207,6 +218,7 @@ describe('sarifFormatter range reports', () => {
     assert.equal(result.properties.commitSha, undefined);
     assert.equal(result.ruleId, 'max-commits');
     assert.match(result.message.text, /^\[range main\.\.HEAD\] Range main\.\.HEAD contains/);
+    assert.equal(result.locations[0].message.text, 'range: main..HEAD');
     assert.equal(
       sarif.runs[0].tool.driver.rules[0].shortDescription.text,
       'Range must not contain more than the maximum number of commits',
@@ -217,6 +229,7 @@ describe('sarifFormatter range reports', () => {
     const output = sarifFormatter.format({
       valid: false,
       commit: parseCommit(''),
+      kind: 'range',
       sha: '0123456789abcdef0123456789abcdef01234567',
       range: 'main..HEAD',
       results: [
@@ -236,5 +249,6 @@ describe('sarifFormatter range reports', () => {
     assert.equal(result.properties.range, 'main..HEAD');
     // The sha prefix wins; the range is not prefixed into the message twice.
     assert.equal(result.message.text, '[01234567] Too many commits.');
+    assert.equal(result.locations[0].message.text, 'range: main..HEAD');
   });
 });

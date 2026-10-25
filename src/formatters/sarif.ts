@@ -2,7 +2,11 @@
  * SARIF 2.1.0 formatter for GitHub Code Scanning integration.
  *
  * Each rule maps to a `reportingDescriptor`, each problem to a `result`.
- * No `locations` are emitted since commit messages are not source files.
+ * Every result includes a placeholder `locations` entry pointing at the
+ * repository root (`%SRCROOT%`) — GitHub Code Scanning requires at least
+ * one location per result to display it.  The location's `message` carries
+ * the commit header (or the range spec for range-level reports) so the
+ * finding remains identifiable in the UI.
  *
  * When a {@link ValidationReport} carries a `sha`, each result includes a
  * `properties.commitSha` bag so consumers can identify the source commit.
@@ -23,11 +27,19 @@ interface SarifReportingDescriptor {
   shortDescription: { text: string };
 }
 
+interface SarifLocation {
+  physicalLocation: {
+    artifactLocation: { uri: string; uriBaseId: string };
+  };
+  message?: { text: string };
+}
+
 interface SarifResult {
   ruleId: string;
   ruleIndex: number;
   level: 'error' | 'warning' | 'note';
   message: { text: string };
+  locations: SarifLocation[];
   properties?: Record<string, unknown>;
 }
 
@@ -77,11 +89,24 @@ export const sarifFormatter: Formatter = {
       const level = result.severity === 'error' ? 'error' : 'warning';
 
       for (const problem of result.problems) {
+        const locationMessage =
+          report.kind === 'range'
+            ? `range: ${report.range}`
+            : `commit: ${report.commit.header || '<empty>'}`;
+
         const sarifResult: SarifResult = {
           ruleId: result.ruleName,
           ruleIndex,
           level,
           message: { text: problem.message },
+          locations: [
+            {
+              physicalLocation: {
+                artifactLocation: { uri: '', uriBaseId: '%SRCROOT%' },
+              },
+              message: { text: locationMessage },
+            },
+          ],
         };
 
         // Include commit identity when available (F13)
