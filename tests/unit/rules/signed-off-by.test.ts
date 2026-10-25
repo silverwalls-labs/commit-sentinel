@@ -69,4 +69,10 @@ describe('signed-off-by rule', () => {
     assert.equal(problems.length, 1);
     assert.match(problems[0]!.message, /Name <email>/);
   });
+
+  it('rejects a hash-separated sign-off, which git does not recognize', () => {
+    const problems = run('feat: x\n\nSigned-off-by #Ada Lovelace <ada@example.com>');
+    assert.equal(problems.length, 1);
+    assert.match(problems[0]!.message, /must contain a Signed-off-by/);
+  });
 });

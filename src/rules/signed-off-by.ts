@@ -11,7 +11,11 @@ export const signedOffByRule = defineRule({
     defaultSeverity: 'error',
   },
   validate({ commit }) {
-    const signOffs = commit.footers.filter((f) => f.token.toLowerCase() === 'signed-off-by');
+    // Git's DCO machinery only recognizes the colon form; `Signed-off-by #…`
+    // parses as a footer but is not a sign-off.
+    const signOffs = commit.footers.filter(
+      (f) => f.separator === ': ' && f.token.toLowerCase() === 'signed-off-by',
+    );
     if (signOffs.length === 0) {
       return [
         {

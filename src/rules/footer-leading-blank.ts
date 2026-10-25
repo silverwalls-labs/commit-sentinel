@@ -61,9 +61,11 @@ export const footerLeadingBlankRule = defineRule<FooterLeadingBlankOptions>({
   validate({ commit, options }) {
     if (commit.body === null) {
       if (commit.footers.length === 0) return [];
-      // Footers directly after the header: when footers exist without a body,
-      // line 2 always exists and must be blank.
-      if (commit.raw.split(/\r?\n/)[1]!.trim() !== '') {
+      // Footers directly after the header: line 2 must be blank. It always
+      // exists for parser-built commits (footers require a content line);
+      // hand-built commits may lack it, in which case there is nothing to check.
+      const secondLine = commit.raw.split(/\r?\n/)[1];
+      if (secondLine !== undefined && secondLine.trim() !== '') {
         return [
           {
             message: 'Footers must be separated from the header by a blank line.',

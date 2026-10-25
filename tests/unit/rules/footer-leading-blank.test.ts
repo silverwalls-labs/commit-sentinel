@@ -98,6 +98,27 @@ describe('footer-leading-blank rule', () => {
     assert.match(problems[0]!.message, /2 trailer-like line/);
   });
 
+  it('does not throw on a hand-built commit whose raw has a single line', () => {
+    // parseCommit never produces this shape (footers require a content line),
+    // but hand-built ParsedCommit values must not crash the rule.
+    const problems = footerLeadingBlankRule.validate({
+      commit: {
+        raw: 'feat: x',
+        header: 'feat: x',
+        type: 'feat',
+        scope: null,
+        breaking: false,
+        hasBreakingChange: false,
+        subject: 'x',
+        body: null,
+        footers: [{ token: 'Refs', separator: ': ', value: '1' }],
+      },
+      git: null,
+      options: {},
+    });
+    assert.equal(problems.length, 0);
+  });
+
   describe('validateOptions', () => {
     it('returns empty for default options', () => {
       assert.equal(footerLeadingBlankRule.validateOptions!({}).length, 0);
