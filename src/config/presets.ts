@@ -45,6 +45,7 @@ export const angular: Preset = {
   'subject-case': ['error', { case: 'lower' }],
   'subject-no-trailing-period': 'error',
   'body-max-line-length': ['error', { max: 100 }],
+  'footer-max-line-length': ['error', { max: 100 }],
   'max-commits': ['error', { max: 10 }],
 };
 
@@ -76,9 +77,13 @@ export const hardened: Preset = {
   'body-required': 'error',
   'body-min-length': ['error', { min: 20 }],
   'body-max-line-length': ['error', { max: 100 }],
+  'footer-leading-blank': 'error',
+  'footer-max-line-length': ['error', { max: 100 }],
   'breaking-change': ['error', { requireFooter: true }],
+  'references-required': 'error',
   'author-email': 'error',
   'signed': 'error',
+  'signed-off-by': 'error',
   'agent-attribution': 'error',
   'max-commits': ['error', { max: 5 }],
 };

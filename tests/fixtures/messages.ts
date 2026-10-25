@@ -9,6 +9,7 @@ export const valid = {
   withBreakingFooter: 'feat: change\n\nBREAKING CHANGE: removed /v1 endpoint',
   withScopeAndBreaking: 'refactor(core)!: rewrite internals',
   withMultipleFooters: 'fix: bug\n\nBody.\n\nReviewed-by: Alice\nRefs #123',
+  withSignOff: 'feat: add login\n\nBody text.\n\nSigned-off-by: Ada Lovelace <ada@example.com>',
 } as const;
 
 /** Invalid commit messages by failure mode. */

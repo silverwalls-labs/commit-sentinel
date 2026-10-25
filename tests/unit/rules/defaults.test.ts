@@ -7,6 +7,9 @@ import { subjectMinLengthRule } from '../../../src/rules/subject-min-length.ts';
 import { headerMaxLengthRule } from '../../../src/rules/header-max-length.ts';
 import { bodyMinLengthRule } from '../../../src/rules/body-min-length.ts';
 import { bodyMaxLineLengthRule } from '../../../src/rules/body-max-line-length.ts';
+import { footerMaxLineLengthRule } from '../../../src/rules/footer-max-line-length.ts';
+import { footerLeadingBlankRule } from '../../../src/rules/footer-leading-blank.ts';
+import { referencesRequiredRule } from '../../../src/rules/references-required.ts';
 import { authorEmailRule } from '../../../src/rules/author-email.ts';
 import { breakingChangeRule } from '../../../src/rules/breaking-change.ts';
 import { typeEnumRule } from '../../../src/rules/type-enum.ts';
@@ -69,6 +72,45 @@ describe('rule option defaults', () => {
     });
     assert.equal(problems.length, 1);
     assert.match(problems[0]!.message, /100/);
+  });
+
+  it('footer-max-line-length defaults to 100', () => {
+    const problems = footerMaxLineLengthRule.validate({
+      commit: parseCommit(`feat: add\n\nReviewed-by: ${'a'.repeat(101)}`),
+      git: null,
+      options: {},
+    });
+    assert.equal(problems.length, 1);
+    assert.match(problems[0]!.message, /100/);
+  });
+
+  it('footer-leading-blank defaults to the known trailer tokens', () => {
+    const glued = footerLeadingBlankRule.validate({
+      commit: parseCommit('feat: add\n\nBody text.\nSigned-off-by: Ada <ada@example.com>'),
+      git: null,
+      options: {},
+    });
+    assert.equal(glued.length, 1);
+    const unknown = footerLeadingBlankRule.validate({
+      commit: parseCommit('feat: add\n\nBody text.\nNote: be careful'),
+      git: null,
+      options: {},
+    });
+    assert.equal(unknown.length, 0);
+  });
+
+  it('references-required defaults to GitHub-style references', () => {
+    const missing = referencesRequiredRule.validate({
+      commit: parseCommit('feat: add'),
+      git: null,
+      options: {},
+    });
+    assert.equal(missing.length, 1);
+    assert.equal(referencesRequiredRule.validate({
+      commit: parseCommit('feat: add\n\nFixes #42'),
+      git: null,
+      options: {},
+    }).length, 0);
   });
 
   it('author-email defaults to match-all pattern', () => {

@@ -1,4 +1,5 @@
 import { defineRule } from './define-rule.ts';
+import { lineExceedsMax } from './line-length.ts';
 
 interface BodyMaxLineLengthOptions {
   max?: number;
@@ -25,7 +26,7 @@ export const bodyMaxLineLengthRule = defineRule<BodyMaxLineLengthOptions>({
     const violations: string[] = [];
 
     for (const line of commit.body.split('\n')) {
-      if (line.length > max) {
+      if (lineExceedsMax(line, max)) {
         violations.push(line.slice(0, 30) + (line.length > 30 ? '...' : ''));
       }
     }

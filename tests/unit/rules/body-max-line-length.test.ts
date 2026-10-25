@@ -40,6 +40,15 @@ describe('body-max-line-length rule', () => {
     assert.match(problems[0]!.message, /exceed the maximum of 10/);
   });
 
+  it('exempts long lines whose overflow is caused by a URL', () => {
+    assert.equal(run(`feat: add\n\nSee https://example.com/${'a'.repeat(100)}`, 100).length, 0);
+  });
+
+  it('rejects long lines that remain too long without their URLs', () => {
+    const problems = run(`feat: add\n\n${'a'.repeat(101)} https://example.com/x`, 100);
+    assert.equal(problems.length, 1);
+  });
+
   describe('validateOptions', () => {
     it('returns empty for valid options', () => {
       assert.equal(bodyMaxLineLengthRule.validateOptions!({ max: 100 }).length, 0);

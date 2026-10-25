@@ -11,13 +11,17 @@ import { headerMaxLengthRule } from './header-max-length.ts';
 import { bodyRequiredRule } from './body-required.ts';
 import { bodyMinLengthRule } from './body-min-length.ts';
 import { bodyMaxLineLengthRule } from './body-max-line-length.ts';
+import { footerLeadingBlankRule } from './footer-leading-blank.ts';
+import { footerMaxLineLengthRule } from './footer-max-line-length.ts';
 import { breakingChangeRule } from './breaking-change.ts';
+import { referencesRequiredRule } from './references-required.ts';
 import { authorEmailRule } from './author-email.ts';
 import { signedRule } from './signed.ts';
+import { signedOffByRule } from './signed-off-by.ts';
 import { agentAttributionRule } from './agent-attribution.ts';
 import { maxCommitsRule } from './max-commits.ts';
 
-/** All 17 built-in rules, keyed by name. */
+/** All 21 built-in rules, keyed by name. */
 export const builtinRules: ReadonlyMap<string, Rule> = new Map<string, Rule>([
   ['format', formatRule],
   ['type-enum', typeEnumRule],
@@ -31,9 +35,13 @@ export const builtinRules: ReadonlyMap<string, Rule> = new Map<string, Rule>([
   ['body-required', bodyRequiredRule],
   ['body-min-length', bodyMinLengthRule],
   ['body-max-line-length', bodyMaxLineLengthRule],
+  ['footer-leading-blank', footerLeadingBlankRule],
+  ['footer-max-line-length', footerMaxLineLengthRule],
   ['breaking-change', breakingChangeRule],
+  ['references-required', referencesRequiredRule],
   ['author-email', authorEmailRule],
   ['signed', signedRule],
+  ['signed-off-by', signedOffByRule],
   ['agent-attribution', agentAttributionRule],
   ['max-commits', maxCommitsRule],
 ]);

@@ -3,13 +3,15 @@
  *
  * @example
  * ```
- * { token: 'Reviewed-by', value: 'Alice' }
- * { token: 'BREAKING CHANGE', value: 'removed /v1 endpoint' }
+ * { token: 'Reviewed-by', separator: ': ', value: 'Alice' }
+ * { token: 'Fixes', separator: ' #', value: '42' }
  * ```
  */
 export interface Footer {
   /** The footer token (e.g. `"Reviewed-by"`, `"BREAKING CHANGE"`, `"Refs"`). */
   token: string;
+  /** The separator as written: `": "` (`Token: value`) or `" #"` (`Token #value`). */
+  separator: ': ' | ' #';
   /** The footer value after the separator. May span multiple lines. */
   value: string;
 }
@@ -43,7 +45,8 @@ export interface ParsedCommit {
 }
 
 const HEADER_RE = /^(?<type>[a-zA-Z]+)(?:\((?<scope>[^()\r\n]+)\))?(?<breaking>!)?:\s(?<subject>.+)$/;
-const FOOTER_LINE_RE = /^(?<token>BREAKING[ -]CHANGE|[\w-]+)(?:: | #)(?<value>.*)$/;
+/** Footer line shape: `Token: value` or `Token #value` (Conventional Commits rules 8–9). */
+export const FOOTER_LINE_RE = /^(?<token>BREAKING[ -]CHANGE|[\w-]+)(?<sep>: | #)(?<value>.*)$/;
 
 /**
  * Parse a raw commit message into its constituent parts.
@@ -65,7 +68,7 @@ const FOOTER_LINE_RE = /^(?<token>BREAKING[ -]CHANGE|[\w-]+)(?:: | #)(?<value>.*
  * commit.scope      // 'api'
  * commit.breaking   // true
  * commit.subject    // 'drop v1'
- * commit.footers[0] // { token: 'BREAKING CHANGE', value: 'removed /v1' }
+ * commit.footers[0] // { token: 'BREAKING CHANGE', separator: ': ', value: 'removed /v1' }
  * ```
  */
 export function parseCommit(message: string): ParsedCommit {
@@ -203,7 +206,11 @@ function parseFooterSection(lines: string[], from: number, end: number): Footer[
 
     const match = FOOTER_LINE_RE.exec(line);
     if (match?.groups) {
-      current = { token: match.groups.token!, value: match.groups.value! };
+      current = {
+        token: match.groups.token!,
+        separator: match.groups.sep === ' #' ? ' #' : ': ',
+        value: match.groups.value!,
+      };
       footers.push(current);
     } else if (current !== null) {
       // Continuation line — append to current footer value.

@@ -53,6 +53,10 @@ describe('presets', () => {
     assert.deepEqual(angular['body-max-line-length'], ['error', { max: 100 }]);
   });
 
+  it('angular preset caps footer lines at 100', () => {
+    assert.deepEqual(angular['footer-max-line-length'], ['error', { max: 100 }]);
+  });
+
   it('every preset enables max-commits at error', () => {
     for (const [name, preset] of Object.entries({ strict, conventional, angular })) {
       assert.deepEqual(

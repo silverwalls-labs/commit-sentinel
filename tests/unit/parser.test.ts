@@ -107,7 +107,7 @@ describe('parseCommit', () => {
   it('trims blank lines between body and footer section', () => {
     const result = parseCommit('feat: add login\n\nbody text\n\n\nRefs: #1');
     assert.equal(result.body, 'body text');
-    assert.deepEqual(result.footers, [{ token: 'Refs', value: '#1' }]);
+    assert.deepEqual(result.footers, [{ token: 'Refs', separator: ': ', value: '#1' }]);
   });
 
   it('returns null type for malformed header', () => {

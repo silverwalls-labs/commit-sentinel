@@ -68,7 +68,8 @@ describe('CLI run()', () => {
     const configPath = join(dir, 'hardened.config.ts');
     await writeFile(configPath, `export default { extends: 'hardened' };`);
 
-    const message = 'feat(api): add login\n\nAdd the login flow with session handling.';
+    const message =
+      'feat(api): add login\n\nAdd the login flow with session handling.\n\nRefs #42\nSigned-off-by: Ada Lovelace <ada@example.com>';
     const result = await run(['--message', message, '--config', configPath]);
     assert.equal(result.exitCode, 0);
   });
