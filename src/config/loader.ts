@@ -45,19 +45,33 @@ async function exists(path: string): Promise<boolean> {
 
 /**
  * Walk from `startDir` upward looking for `commit-sentinel.config.ts`.
- * The nearest config wins. The walk stops after checking the first directory
+ * The nearest config wins, with one safeguard: a config in `startDir` itself
+ * always applies, but a config found in an ancestor directory only applies
+ * inside a git repository. The walk stops after checking the first directory
  * that contains a `.git` entry (the repo root — a directory, or a file for
- * worktrees/submodules), or at the filesystem root.
+ * worktrees/submodules); when no `.git` entry exists anywhere up to the
+ * filesystem root, ancestor configs are ignored so that a config planted in
+ * an unrelated — potentially untrusted — parent directory is never imported.
  */
 async function findConfigFile(startDir: string): Promise<string | null> {
   let dir = resolve(startDir);
+  let found: string | null = null;
+  let isStart = true;
   for (;;) {
     const candidate = join(dir, CONFIG_FILE);
-    if (await exists(candidate)) return candidate;
-    if (await exists(join(dir, '.git'))) return null; // repo root reached, no config
+    const [hasConfig, hasGit] = await Promise.all([
+      found === null && exists(candidate),
+      exists(join(dir, '.git')),
+    ]);
+    if (hasConfig) {
+      if (isStart) return candidate; // config in the start directory always applies
+      found = candidate;
+    }
+    if (hasGit) return found; // repo root reached (boundary is inclusive)
     const parent = dirname(dir);
-    if (parent === dir) return null; // filesystem root
+    if (parent === dir) return null; // filesystem root, no repo: ancestor configs ignored
     dir = parent;
+    isStart = false;
   }
 }
 
@@ -70,7 +84,10 @@ async function findConfigFile(startDir: string): Promise<string | null> {
  * 2. Otherwise walk from `cwd` upward looking for `commit-sentinel.config.ts`.
  *    The nearest config wins; the walk stops after checking the first
  *    directory that contains a `.git` entry (the repo root — `.git` may be a
- *    directory, or a file for worktrees/submodules) or at the filesystem root.
+ *    directory, or a file for worktrees/submodules). A config in `cwd` itself
+ *    always applies; configs in ancestor directories apply only inside a git
+ *    repository — when no `.git` entry exists up to the filesystem root, they
+ *    are ignored.
  * 3. If found, `import()` it and read its default export.
  * 4. Merge `plugins` into the rule registry and auto-enable each plugin rule
  *    at its `meta.defaultSeverity`.

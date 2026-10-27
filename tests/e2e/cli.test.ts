@@ -685,7 +685,8 @@ describe('CLI e2e monorepo config walking', () => {
 
   afterEach(async () => {
     process.chdir(previousCwd);
-    await rm(dir, { recursive: true, force: true });
+    // Guard: beforeEach may throw before `dir` is assigned.
+    if (dir) await rm(dir, { recursive: true, force: true });
   });
 
   it('finds the repo-root config from a nested package directory without --config', async () => {

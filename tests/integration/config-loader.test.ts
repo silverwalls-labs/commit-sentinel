@@ -32,6 +32,8 @@ describe('loadConfig', () => {
 
   beforeEach(async () => {
     dir = await mkdtemp(join(tmpdir(), 'commit-sentinel-config-'));
+    // Pin the walk boundary so tests never escape the fixture into the host filesystem.
+    await mkdir(join(dir, '.git'));
   });
 
   afterEach(async () => {
@@ -863,6 +865,22 @@ describe('loadConfig', () => {
 
       const config = await loadConfig(sub);
       assert.deepEqual(config.rules['subject-max-length']!.options, { max: 46 });
+    });
+
+    it('ignores ancestor configs when not inside a git repo', async () => {
+      // Own fixture without the .git boundary marker: the walk reaches the
+      // filesystem root without finding a repo, so the ancestor config is ignored.
+      const outside = await mkdtemp(join(tmpdir(), 'commit-sentinel-no-repo-'));
+      try {
+        await writeFile(join(outside, 'commit-sentinel.config.ts'), configSource(50));
+        const child = join(outside, 'child');
+        await mkdir(child);
+
+        const config = await loadConfig(child);
+        assert.equal(config.rules['subject-max-length'], undefined);
+      } finally {
+        await rm(outside, { recursive: true, force: true });
+      }
     });
 
     it('explicit configPath bypasses the walk', async () => {

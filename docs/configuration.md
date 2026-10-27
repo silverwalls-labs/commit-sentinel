@@ -19,13 +19,13 @@ export default defineConfig({
 ## How config resolution works
 
 1. With `--config <path>`, uses that file directly (resolved against the current working directory) — no searching
-2. Otherwise, walks from the current working directory upward looking for `commit-sentinel.config.ts` — the nearest config wins; the walk stops after checking the first directory that contains a `.git` entry (the repo root — a directory, or a file for worktrees/submodules), or at the filesystem root
+2. Otherwise, walks from the current working directory upward looking for `commit-sentinel.config.ts` — the nearest config wins; the walk stops after checking the first directory that contains a `.git` entry (the repo root — a directory, or a file for worktrees/submodules). A config in the current working directory always applies; configs in parent directories apply only inside a git repository
 3. If found, loads it via native `import()` and reads the default export
 4. Merges custom `plugins` rules into the rule registry
 5. Resolves the `extends` preset, then applies user `rules` on top
 6. If no config file is found, falls back to the `strict` preset
 
-In a monorepo, this means you can keep a single `commit-sentinel.config.ts` at the repo root and run commit-sentinel from any package directory (e.g. `packages/app`) — the root config is found automatically. Configs **above** the repo root are never picked up.
+In a monorepo, this means you can keep a single `commit-sentinel.config.ts` at the repo root and run commit-sentinel from any package directory (e.g. `packages/app`) — the root config is found automatically. Configs **above** the repo root are never picked up, and outside a git repository parent directories are never searched: a config file is executable TypeScript, so it is only ever loaded from your own working directory or your own repository.
 
 > **Note:** Node.js caches ESM `import()` by URL. If you change the config file, restart the process to pick up the new values.
 
