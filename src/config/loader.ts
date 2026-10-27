@@ -1,5 +1,5 @@
 import { access } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { ActiveSeverity, Rule, RuleConfig, Severity } from '../rules/types.ts';
 import type { UserConfig } from './define-config.ts';
@@ -34,18 +34,50 @@ export interface ResolvedConfig {
 
 const CONFIG_FILE = 'commit-sentinel.config.ts';
 
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Walk from `startDir` upward looking for `commit-sentinel.config.ts`.
+ * The nearest config wins. The walk stops after checking the first directory
+ * that contains a `.git` entry (the repo root — a directory, or a file for
+ * worktrees/submodules), or at the filesystem root.
+ */
+async function findConfigFile(startDir: string): Promise<string | null> {
+  let dir = resolve(startDir);
+  for (;;) {
+    const candidate = join(dir, CONFIG_FILE);
+    if (await exists(candidate)) return candidate;
+    if (await exists(join(dir, '.git'))) return null; // repo root reached, no config
+    const parent = dirname(dir);
+    if (parent === dir) return null; // filesystem root
+    dir = parent;
+  }
+}
+
 /**
  * Discover, load, and resolve a commit-sentinel configuration.
  *
  * Resolution order:
- * 1. Look for `commit-sentinel.config.ts` in `cwd` (or an explicit `configPath`).
- * 2. If found, `import()` it and read its default export.
- * 3. Merge `plugins` into the rule registry and auto-enable each plugin rule
+ * 1. When `configPath` is given, resolve it against `cwd` and use it directly
+ *    (no walking); throw if it does not exist.
+ * 2. Otherwise walk from `cwd` upward looking for `commit-sentinel.config.ts`.
+ *    The nearest config wins; the walk stops after checking the first
+ *    directory that contains a `.git` entry (the repo root — `.git` may be a
+ *    directory, or a file for worktrees/submodules) or at the filesystem root.
+ * 3. If found, `import()` it and read its default export.
+ * 4. Merge `plugins` into the rule registry and auto-enable each plugin rule
  *    at its `meta.defaultSeverity`.
- * 4. Resolve the `extends` preset, then merge user overrides on top.
- * 5. If no config file is found, fall back to the `strict` preset.
+ * 5. Resolve the `extends` preset, then merge user overrides on top.
+ * 6. If no config file is found, fall back to the `strict` preset.
  *
- * @param cwd - Directory to search for the config file. Defaults to `process.cwd()`.
+ * @param cwd - Directory where the config search starts. Defaults to `process.cwd()`.
  * @param configPath - Explicit path to a config file (relative to `cwd`).
  * @returns A fully resolved config with only active rules.
  * @throws When an explicit `configPath` does not exist, the config file fails
@@ -70,15 +102,16 @@ async function loadUserConfig(
   dir: string,
   configPath?: string,
 ): Promise<UserConfig | null> {
-  const filePath = configPath ? resolve(dir, configPath) : resolve(dir, CONFIG_FILE);
-
-  try {
-    await access(filePath);
-  } catch {
-    if (configPath) {
+  let filePath: string;
+  if (configPath) {
+    filePath = resolve(dir, configPath);
+    if (!(await exists(filePath))) {
       throw new Error(`Config file not found: ${filePath}`);
     }
-    return null;
+  } else {
+    const found = await findConfigFile(dir);
+    if (found === null) return null;
+    filePath = found;
   }
 
   try {

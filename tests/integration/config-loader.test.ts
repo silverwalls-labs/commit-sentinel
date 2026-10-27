@@ -796,4 +796,94 @@ describe('loadConfig', () => {
       assert.equal(config.rules['header-max-length'], undefined);
     });
   });
+
+  describe('config discovery walk', () => {
+    /** Config source with a distinctive subject-max-length to tell configs apart. */
+    function configSource(max: number): string {
+      return `
+        export default {
+          extends: 'strict',
+          rules: {
+            'subject-max-length': ['warn', { max: ${max} }],
+          },
+        };
+      `;
+    }
+
+    it('finds config in a parent directory from a nested child', async () => {
+      await writeFile(join(dir, 'commit-sentinel.config.ts'), configSource(41));
+      const child = join(dir, 'packages', 'app');
+      await mkdir(child, { recursive: true });
+
+      const config = await loadConfig(child);
+      assert.deepEqual(config.rules['subject-max-length']!.options, { max: 41 });
+    });
+
+    it('nearest config wins over an ancestor config', async () => {
+      await writeFile(join(dir, 'commit-sentinel.config.ts'), configSource(42));
+      const pkg = join(dir, 'pkg');
+      const nested = join(pkg, 'nested');
+      await mkdir(nested, { recursive: true });
+      await writeFile(join(pkg, 'commit-sentinel.config.ts'), configSource(43));
+
+      const config = await loadConfig(nested);
+      assert.deepEqual(config.rules['subject-max-length']!.options, { max: 43 });
+    });
+
+    it('stops at a .git directory boundary without picking up configs above it', async () => {
+      await writeFile(join(dir, 'commit-sentinel.config.ts'), configSource(44));
+      const repo = join(dir, 'repo');
+      const sub = join(repo, 'sub');
+      await mkdir(sub, { recursive: true });
+      await mkdir(join(repo, '.git'));
+
+      const config = await loadConfig(sub);
+      // Strict fallback: the config above the repo root must not apply.
+      assert.equal(config.rules['subject-max-length'], undefined);
+      assert.equal(config.rules['type-enum']!.severity, 'error');
+    });
+
+    it('stops at a .git file boundary (worktree/submodule)', async () => {
+      await writeFile(join(dir, 'commit-sentinel.config.ts'), configSource(45));
+      const repo = join(dir, 'repo');
+      const sub = join(repo, 'sub');
+      await mkdir(sub, { recursive: true });
+      await writeFile(join(repo, '.git'), 'gitdir: /elsewhere\n');
+
+      const config = await loadConfig(sub);
+      assert.equal(config.rules['subject-max-length'], undefined);
+    });
+
+    it('finds a config sitting next to .git (boundary is inclusive)', async () => {
+      const repo = join(dir, 'repo');
+      const sub = join(repo, 'sub');
+      await mkdir(sub, { recursive: true });
+      await mkdir(join(repo, '.git'));
+      await writeFile(join(repo, 'commit-sentinel.config.ts'), configSource(46));
+
+      const config = await loadConfig(sub);
+      assert.deepEqual(config.rules['subject-max-length']!.options, { max: 46 });
+    });
+
+    it('explicit configPath bypasses the walk', async () => {
+      await writeFile(join(dir, 'commit-sentinel.config.ts'), configSource(47));
+      const child = join(dir, 'child');
+      await mkdir(child);
+      await writeFile(join(child, 'custom.config.ts'), configSource(48));
+
+      const config = await loadConfig(child, 'custom.config.ts');
+      assert.deepEqual(config.rules['subject-max-length']!.options, { max: 48 });
+    });
+
+    it('missing explicit configPath still throws even when an ancestor has a config', async () => {
+      await writeFile(join(dir, 'commit-sentinel.config.ts'), configSource(49));
+      const child = join(dir, 'child');
+      await mkdir(child);
+
+      await assert.rejects(
+        () => loadConfig(child, 'missing.config.ts'),
+        /Config file not found/,
+      );
+    });
+  });
 });

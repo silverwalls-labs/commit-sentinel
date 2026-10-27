@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { execFile } from 'node:child_process';
-import { mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
@@ -665,5 +665,37 @@ describe('CLI e2e max-commits range rule', () => {
     assert.equal(result.exitCode, 1);
     assert.equal(result.stdout, '');
     assert.match(result.stderr, /Option --base requires a non-empty value\./);
+  });
+});
+
+describe('CLI e2e monorepo config walking', () => {
+  let dir: string;
+  let previousCwd: string;
+
+  beforeEach(async () => {
+    previousCwd = process.cwd();
+    dir = await createFixtureRepo('commit-sentinel-e2e-walk-', ['chore: seed']);
+    await writeFile(
+      join(dir, 'commit-sentinel.config.ts'),
+      `export default { extends: 'strict', rules: { 'subject-max-length': ['error', { max: 5 }] } };`,
+    );
+    await mkdir(join(dir, 'packages', 'app'), { recursive: true });
+    process.chdir(join(dir, 'packages', 'app'));
+  });
+
+  afterEach(async () => {
+    process.chdir(previousCwd);
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('finds the repo-root config from a nested package directory without --config', async () => {
+    const result = await runCli(['--message', 'feat: this subject is longer than five chars']);
+    assert.equal(result.exitCode, 2);
+    assert.match(result.stderr, /\[subject-max-length\]/);
+  });
+
+  it('passes a short subject against the walked-up config', async () => {
+    const result = await runCli(['--message', 'feat: ok']);
+    assert.equal(result.exitCode, 0);
   });
 });
