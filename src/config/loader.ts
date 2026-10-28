@@ -1,4 +1,4 @@
-import { access } from 'node:fs/promises';
+import { access, stat } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { ActiveSeverity, Rule, RuleConfig, Severity } from '../rules/types.ts';
@@ -34,10 +34,29 @@ export interface ResolvedConfig {
 
 const CONFIG_FILE = 'commit-sentinel.config.ts';
 
+/**
+ * Whether `path` exists, as an entry of any kind. Used for the `.git`
+ * boundary marker only: it may be a directory, a file (worktrees/submodules),
+ * or a symlink. Matched exactly — git always creates the entry as `.git`,
+ * including on case-insensitive filesystems.
+ */
 async function exists(path: string): Promise<boolean> {
   try {
     await access(path);
     return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Whether `path` exists as a regular file, so a directory named like the
+ * config never matches the walk or an explicit `--config` path.
+ */
+async function isFile(path: string): Promise<boolean> {
+  try {
+    const entry = await stat(path);
+    return entry.isFile();
   } catch {
     return false;
   }
@@ -50,8 +69,12 @@ async function exists(path: string): Promise<boolean> {
  * inside a git repository. The walk stops after checking the first directory
  * that contains a `.git` entry (the repo root — a directory, or a file for
  * worktrees/submodules); when no `.git` entry exists anywhere up to the
- * filesystem root, ancestor configs are ignored so that a config planted in
- * an unrelated — potentially untrusted — parent directory is never imported.
+ * filesystem root, ancestor configs are ignored.
+ *
+ * This is a best-effort guard against accidentally importing an unrelated
+ * config — not a security boundary: `.git` presence is detected by a plain
+ * existence check and is trivial to forge, and a config file is executable
+ * TypeScript. Only run commit-sentinel in directories you trust.
  */
 async function findConfigFile(startDir: string): Promise<string | null> {
   let dir = resolve(startDir);
@@ -60,7 +83,7 @@ async function findConfigFile(startDir: string): Promise<string | null> {
   for (;;) {
     const candidate = join(dir, CONFIG_FILE);
     const [hasConfig, hasGit] = await Promise.all([
-      found === null && exists(candidate),
+      found === null && isFile(candidate),
       exists(join(dir, '.git')),
     ]);
     if (hasConfig) {
@@ -122,7 +145,7 @@ async function loadUserConfig(
   let filePath: string;
   if (configPath) {
     filePath = resolve(dir, configPath);
-    if (!(await exists(filePath))) {
+    if (!(await isFile(filePath))) {
       throw new Error(`Config file not found: ${filePath}`);
     }
   } else {

@@ -1,8 +1,8 @@
 import { strict as assert } from 'node:assert';
 import { describe, it, beforeEach, afterEach } from 'node:test';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { loadConfig } from '../../src/config/loader.ts';
 import { defaultIgnores } from '../../src/ignores.ts';
 import { validate } from '../../src/runner.ts';
@@ -867,9 +867,35 @@ describe('loadConfig', () => {
       assert.deepEqual(config.rules['subject-max-length']!.options, { max: 46 });
     });
 
-    it('ignores ancestor configs when not inside a git repo', async () => {
-      // Own fixture without the .git boundary marker: the walk reaches the
-      // filesystem root without finding a repo, so the ancestor config is ignored.
+    /** Whether any entry exists at `path` (plain existence, any kind). */
+    async function entryExists(path: string): Promise<boolean> {
+      try {
+        await access(path);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    /**
+     * Whether any directory at or above `startDir` contains a `.git` entry.
+     * Independent oracle for tests whose fixture lives under the host's
+     * tmpdir: whether a stray `.git` exists above it depends on the machine.
+     */
+    async function hasGitAbove(startDir: string): Promise<boolean> {
+      for (let d = startDir; ; ) {
+        if (await entryExists(join(d, '.git'))) return true;
+        const parent = dirname(d);
+        if (parent === d) return false;
+        d = parent;
+      }
+    }
+
+    it('ignores an ancestor config when no .git exists up to the filesystem root', async () => {
+      // The fixture deliberately has no .git marker. Whether a stray .git
+      // exists above the tmpdir depends on the host (e.g. a dotfiles-managed
+      // filesystem root), so compute the expected outcome with an independent
+      // existence walk instead of assuming a clean host.
       const outside = await mkdtemp(join(tmpdir(), 'commit-sentinel-no-repo-'));
       try {
         await writeFile(join(outside, 'commit-sentinel.config.ts'), configSource(50));
@@ -877,10 +903,60 @@ describe('loadConfig', () => {
         await mkdir(child);
 
         const config = await loadConfig(child);
-        assert.equal(config.rules['subject-max-length'], undefined);
+        if (await hasGitAbove(outside)) {
+          // Host .git above the fixture: the boundary sits above the config,
+          // so the walk correctly applies it.
+          assert.deepEqual(config.rules['subject-max-length']!.options, { max: 50 });
+        } else {
+          // Clean host: strict fallback — the ancestor config must not apply.
+          assert.equal(config.rules['subject-max-length'], undefined);
+          assert.equal(config.rules['type-enum']!.severity, 'error');
+        }
       } finally {
         await rm(outside, { recursive: true, force: true });
       }
+    });
+
+    it('applies a config in the start directory even with no git repo anywhere', async (t) => {
+      // Pins the "config in the working directory always applies" safeguard:
+      // with no .git marker at or above the fixture, only the start-directory
+      // branch can return this config — an ancestor-only walk would fall back
+      // to strict. On a host with a stray .git above tmpdir both behaviors
+      // coincide, so skip the discrimination there.
+      const outside = await mkdtemp(join(tmpdir(), 'commit-sentinel-start-config-'));
+      try {
+        if (await hasGitAbove(outside)) {
+          t.skip('host has a .git above tmpdir; start-directory discrimination not possible');
+          return;
+        }
+        await writeFile(join(outside, 'commit-sentinel.config.ts'), configSource(51));
+
+        const config = await loadConfig(outside);
+        assert.deepEqual(config.rules['subject-max-length']!.options, { max: 51 });
+      } finally {
+        await rm(outside, { recursive: true, force: true });
+      }
+    });
+
+    it('ignores a directory named commit-sentinel.config.ts during the walk', async () => {
+      await mkdir(join(dir, 'commit-sentinel.config.ts'));
+      const child = join(dir, 'child');
+      await mkdir(child);
+
+      const config = await loadConfig(child);
+      // The directory entry is not a config file, and the .git boundary in
+      // `dir` stops the walk: strict fallback, not an import failure.
+      assert.equal(config.rules['subject-max-length'], undefined);
+      assert.equal(config.rules['type-enum']!.severity, 'error');
+    });
+
+    it('treats an explicit configPath pointing at a directory as not found', async () => {
+      await mkdir(join(dir, 'config-dir'));
+
+      await assert.rejects(
+        () => loadConfig(dir, 'config-dir'),
+        /Config file not found/,
+      );
     });
 
     it('explicit configPath bypasses the walk', async () => {

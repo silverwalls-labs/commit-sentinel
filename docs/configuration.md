@@ -25,7 +25,11 @@ export default defineConfig({
 5. Resolves the `extends` preset, then applies user `rules` on top
 6. If no config file is found, falls back to the `strict` preset
 
-In a monorepo, this means you can keep a single `commit-sentinel.config.ts` at the repo root and run commit-sentinel from any package directory (e.g. `packages/app`) — the root config is found automatically. Configs **above** the repo root are never picked up, and outside a git repository parent directories are never searched: a config file is executable TypeScript, so it is only ever loaded from your own working directory or your own repository.
+In a monorepo, this means you can keep a single `commit-sentinel.config.ts` at the repo root and run commit-sentinel from any package directory (e.g. `packages/app`) — the root config is found automatically. Configs **above** the repo root are never picked up, and outside a git repository parent directories are not searched either.
+
+This is a best-effort guard against accidentally loading an unrelated config — **not a security boundary**. The `.git` marker is detected by a plain existence check and is trivial to forge, and a config file is executable TypeScript: anyone with write access to a parent directory can make a planted config load. Only run commit-sentinel in directories you trust.
+
+> **Upgrading:** before config walking was introduced, the config was looked up in the current working directory only. If you previously ran commit-sentinel from a subdirectory and relied on getting the built-in `strict` preset, an ancestor config now takes effect. Pass `--config ./my-config.ts` or place a `commit-sentinel.config.ts` in the working directory to pin the behavior explicitly.
 
 > **Note:** Node.js caches ESM `import()` by URL. If you change the config file, restart the process to pick up the new values.
 
