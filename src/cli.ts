@@ -125,6 +125,11 @@ export async function run(argv: ReadonlyArray<string>): Promise<RunResult> {
   if (values.base === '') {
     return { exitCode: 1, stdout: '', stderr: 'Option --base requires a non-empty value.\n' };
   }
+  // Same unset-CI-variable hazard: an empty --config is falsy and would
+  // silently fall through to the config walk instead of the explicit path.
+  if (values.config === '') {
+    return { exitCode: 1, stdout: '', stderr: 'Option --config requires a non-empty value.\n' };
+  }
 
   try {
     const config = await loadConfig(undefined, values.config);

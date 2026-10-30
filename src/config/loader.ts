@@ -37,8 +37,9 @@ const CONFIG_FILE = 'commit-sentinel.config.ts';
 /**
  * Whether `path` exists, as an entry of any kind. Used for the `.git`
  * boundary marker only: it may be a directory, a file (worktrees/submodules),
- * or a symlink. Matched exactly — git always creates the entry as `.git`,
- * including on case-insensitive filesystems.
+ * or a symlink. The check follows filesystem semantics, so on
+ * case-insensitive filesystems (the default on macOS and Windows) a
+ * differently-cased entry such as `.GIT` also matches.
  */
 async function exists(path: string): Promise<boolean> {
   try {
