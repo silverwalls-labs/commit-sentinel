@@ -10,7 +10,7 @@ Options:
       --stdin                Read the commit message from stdin
       --range <range>        Validate all commits in a git range (e.g., main..HEAD)
       --base <ref>           Validate all commits from <ref>..HEAD (PR shorthand)
-      --config <path>        Path to config file (default: commit-sentinel.config.ts)
+      --config <path>        Path to config file (default: nearest commit-sentinel.config.ts, searching upward)
       --json                 Output results as JSON
       --sarif                Output results as SARIF 2.1.0
   -h, --help                 Show help

@@ -1,5 +1,5 @@
-import { access } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { access, stat } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { ActiveSeverity, Rule, RuleConfig, Severity } from '../rules/types.ts';
 import type { UserConfig } from './define-config.ts';
@@ -35,17 +35,90 @@ export interface ResolvedConfig {
 const CONFIG_FILE = 'commit-sentinel.config.ts';
 
 /**
+ * Whether `path` exists, as an entry of any kind. Used for the `.git`
+ * boundary marker only: it may be a directory, a file (worktrees/submodules),
+ * or a symlink. The check follows filesystem semantics, so on
+ * case-insensitive filesystems (the default on macOS and Windows) a
+ * differently-cased entry such as `.GIT` also matches.
+ */
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Whether `path` exists as a regular file, so a directory named like the
+ * config never matches the walk or an explicit `--config` path.
+ */
+async function isFile(path: string): Promise<boolean> {
+  try {
+    const entry = await stat(path);
+    return entry.isFile();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Walk from `startDir` upward looking for `commit-sentinel.config.ts`.
+ * The nearest config wins, with one safeguard: a config in `startDir` itself
+ * always applies, but a config found in an ancestor directory only applies
+ * inside a git repository. The walk stops after checking the first directory
+ * that contains a `.git` entry (the repo root — a directory, or a file for
+ * worktrees/submodules); when no `.git` entry exists anywhere up to the
+ * filesystem root, ancestor configs are ignored.
+ *
+ * This is a best-effort guard against accidentally importing an unrelated
+ * config — not a security boundary: `.git` presence is detected by a plain
+ * existence check and is trivial to forge, and a config file is executable
+ * TypeScript. Only run commit-sentinel in directories you trust.
+ */
+async function findConfigFile(startDir: string): Promise<string | null> {
+  let dir = resolve(startDir);
+  let found: string | null = null;
+  let isStart = true;
+  for (;;) {
+    const candidate = join(dir, CONFIG_FILE);
+    const [hasConfig, hasGit] = await Promise.all([
+      found === null && isFile(candidate),
+      exists(join(dir, '.git')),
+    ]);
+    if (hasConfig) {
+      if (isStart) return candidate; // config in the start directory always applies
+      found = candidate;
+    }
+    if (hasGit) return found; // repo root reached (boundary is inclusive)
+    const parent = dirname(dir);
+    if (parent === dir) return null; // filesystem root, no repo: ancestor configs ignored
+    dir = parent;
+    isStart = false;
+  }
+}
+
+/**
  * Discover, load, and resolve a commit-sentinel configuration.
  *
  * Resolution order:
- * 1. Look for `commit-sentinel.config.ts` in `cwd` (or an explicit `configPath`).
- * 2. If found, `import()` it and read its default export.
- * 3. Merge `plugins` into the rule registry and auto-enable each plugin rule
+ * 1. When `configPath` is given, resolve it against `cwd` and use it directly
+ *    (no walking); throw if it does not exist.
+ * 2. Otherwise walk from `cwd` upward looking for `commit-sentinel.config.ts`.
+ *    The nearest config wins; the walk stops after checking the first
+ *    directory that contains a `.git` entry (the repo root — `.git` may be a
+ *    directory, or a file for worktrees/submodules). A config in `cwd` itself
+ *    always applies; configs in ancestor directories apply only inside a git
+ *    repository — when no `.git` entry exists up to the filesystem root, they
+ *    are ignored.
+ * 3. If found, `import()` it and read its default export.
+ * 4. Merge `plugins` into the rule registry and auto-enable each plugin rule
  *    at its `meta.defaultSeverity`.
- * 4. Resolve the `extends` preset, then merge user overrides on top.
- * 5. If no config file is found, fall back to the `strict` preset.
+ * 5. Resolve the `extends` preset, then merge user overrides on top.
+ * 6. If no config file is found, fall back to the `strict` preset.
  *
- * @param cwd - Directory to search for the config file. Defaults to `process.cwd()`.
+ * @param cwd - Directory where the config search starts. Defaults to `process.cwd()`.
  * @param configPath - Explicit path to a config file (relative to `cwd`).
  * @returns A fully resolved config with only active rules.
  * @throws When an explicit `configPath` does not exist, the config file fails
@@ -70,15 +143,16 @@ async function loadUserConfig(
   dir: string,
   configPath?: string,
 ): Promise<UserConfig | null> {
-  const filePath = configPath ? resolve(dir, configPath) : resolve(dir, CONFIG_FILE);
-
-  try {
-    await access(filePath);
-  } catch {
-    if (configPath) {
+  let filePath: string;
+  if (configPath) {
+    filePath = resolve(dir, configPath);
+    if (!(await isFile(filePath))) {
       throw new Error(`Config file not found: ${filePath}`);
     }
-    return null;
+  } else {
+    const found = await findConfigFile(dir);
+    if (found === null) return null;
+    filePath = found;
   }
 
   try {

@@ -4,7 +4,10 @@ import type { IgnorePredicate } from '../ignores.ts';
 /**
  * User-facing configuration for commit-sentinel.
  *
- * Loaded from `commit-sentinel.config.ts` in the project root.
+ * Loaded from `commit-sentinel.config.ts`, discovered by walking up from the
+ * current working directory (nearest config wins, stopping at the git
+ * repository root). A config in the current working directory itself always
+ * applies; configs in parent directories apply only inside a git repository.
  *
  * @example
  * ```ts

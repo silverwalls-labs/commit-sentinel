@@ -1,8 +1,8 @@
 import { strict as assert } from 'node:assert';
 import { describe, it, beforeEach, afterEach } from 'node:test';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { loadConfig } from '../../src/config/loader.ts';
 import { defaultIgnores } from '../../src/ignores.ts';
 import { validate } from '../../src/runner.ts';
@@ -32,6 +32,8 @@ describe('loadConfig', () => {
 
   beforeEach(async () => {
     dir = await mkdtemp(join(tmpdir(), 'commit-sentinel-config-'));
+    // Pin the walk boundary so tests never escape the fixture into the host filesystem.
+    await mkdir(join(dir, '.git'));
   });
 
   afterEach(async () => {
@@ -794,6 +796,188 @@ describe('loadConfig', () => {
       await writeFile(join(dir, 'commit-sentinel.config.ts'), configContent);
       const config = await loadConfig(dir);
       assert.equal(config.rules['header-max-length'], undefined);
+    });
+  });
+
+  describe('config discovery walk', () => {
+    /** Config source with a distinctive subject-max-length to tell configs apart. */
+    function configSource(max: number): string {
+      return `
+        export default {
+          extends: 'strict',
+          rules: {
+            'subject-max-length': ['warn', { max: ${max} }],
+          },
+        };
+      `;
+    }
+
+    it('finds config in a parent directory from a nested child', async () => {
+      await writeFile(join(dir, 'commit-sentinel.config.ts'), configSource(41));
+      const child = join(dir, 'packages', 'app');
+      await mkdir(child, { recursive: true });
+
+      const config = await loadConfig(child);
+      assert.deepEqual(config.rules['subject-max-length']!.options, { max: 41 });
+    });
+
+    it('nearest config wins over an ancestor config', async () => {
+      await writeFile(join(dir, 'commit-sentinel.config.ts'), configSource(42));
+      const pkg = join(dir, 'pkg');
+      const nested = join(pkg, 'nested');
+      await mkdir(nested, { recursive: true });
+      await writeFile(join(pkg, 'commit-sentinel.config.ts'), configSource(43));
+
+      const config = await loadConfig(nested);
+      assert.deepEqual(config.rules['subject-max-length']!.options, { max: 43 });
+    });
+
+    it('stops at a .git directory boundary without picking up configs above it', async () => {
+      await writeFile(join(dir, 'commit-sentinel.config.ts'), configSource(44));
+      const repo = join(dir, 'repo');
+      const sub = join(repo, 'sub');
+      await mkdir(sub, { recursive: true });
+      await mkdir(join(repo, '.git'));
+
+      const config = await loadConfig(sub);
+      // Strict fallback: the config above the repo root must not apply.
+      assert.equal(config.rules['subject-max-length'], undefined);
+      assert.equal(config.rules['type-enum']!.severity, 'error');
+    });
+
+    it('stops at a .git file boundary (worktree/submodule)', async () => {
+      await writeFile(join(dir, 'commit-sentinel.config.ts'), configSource(45));
+      const repo = join(dir, 'repo');
+      const sub = join(repo, 'sub');
+      await mkdir(sub, { recursive: true });
+      await writeFile(join(repo, '.git'), 'gitdir: /elsewhere\n');
+
+      const config = await loadConfig(sub);
+      assert.equal(config.rules['subject-max-length'], undefined);
+    });
+
+    it('finds a config sitting next to .git (boundary is inclusive)', async () => {
+      const repo = join(dir, 'repo');
+      const sub = join(repo, 'sub');
+      await mkdir(sub, { recursive: true });
+      await mkdir(join(repo, '.git'));
+      await writeFile(join(repo, 'commit-sentinel.config.ts'), configSource(46));
+
+      const config = await loadConfig(sub);
+      assert.deepEqual(config.rules['subject-max-length']!.options, { max: 46 });
+    });
+
+    /** Whether any entry exists at `path` (plain existence, any kind). */
+    async function entryExists(path: string): Promise<boolean> {
+      try {
+        await access(path);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    /**
+     * Whether any directory at or above `startDir` contains a `.git` entry.
+     * Independent oracle for tests whose fixture lives under the host's
+     * tmpdir: whether a stray `.git` exists above it depends on the machine.
+     */
+    async function hasGitAbove(startDir: string): Promise<boolean> {
+      for (let d = startDir; ; ) {
+        if (await entryExists(join(d, '.git'))) return true;
+        const parent = dirname(d);
+        if (parent === d) return false;
+        d = parent;
+      }
+    }
+
+    it('ignores an ancestor config when no .git exists up to the filesystem root', async () => {
+      // The fixture deliberately has no .git marker. Whether a stray .git
+      // exists above the tmpdir depends on the host (e.g. a dotfiles-managed
+      // filesystem root), so compute the expected outcome with an independent
+      // existence walk instead of assuming a clean host.
+      const outside = await mkdtemp(join(tmpdir(), 'commit-sentinel-no-repo-'));
+      try {
+        await writeFile(join(outside, 'commit-sentinel.config.ts'), configSource(50));
+        const child = join(outside, 'child');
+        await mkdir(child);
+
+        const config = await loadConfig(child);
+        if (await hasGitAbove(outside)) {
+          // Host .git above the fixture: the boundary sits above the config,
+          // so the walk correctly applies it.
+          assert.deepEqual(config.rules['subject-max-length']!.options, { max: 50 });
+        } else {
+          // Clean host: strict fallback — the ancestor config must not apply.
+          assert.equal(config.rules['subject-max-length'], undefined);
+          assert.equal(config.rules['type-enum']!.severity, 'error');
+        }
+      } finally {
+        await rm(outside, { recursive: true, force: true });
+      }
+    });
+
+    it('applies a config in the start directory even with no git repo anywhere', async (t) => {
+      // Pins the "config in the working directory always applies" safeguard:
+      // with no .git marker at or above the fixture, only the start-directory
+      // branch can return this config — an ancestor-only walk would fall back
+      // to strict. On a host with a stray .git above tmpdir both behaviors
+      // coincide, so skip the discrimination there.
+      const outside = await mkdtemp(join(tmpdir(), 'commit-sentinel-start-config-'));
+      try {
+        if (await hasGitAbove(outside)) {
+          t.skip('host has a .git above tmpdir; start-directory discrimination not possible');
+          return;
+        }
+        await writeFile(join(outside, 'commit-sentinel.config.ts'), configSource(51));
+
+        const config = await loadConfig(outside);
+        assert.deepEqual(config.rules['subject-max-length']!.options, { max: 51 });
+      } finally {
+        await rm(outside, { recursive: true, force: true });
+      }
+    });
+
+    it('ignores a directory named commit-sentinel.config.ts during the walk', async () => {
+      await mkdir(join(dir, 'commit-sentinel.config.ts'));
+      const child = join(dir, 'child');
+      await mkdir(child);
+
+      const config = await loadConfig(child);
+      // The directory entry is not a config file, and the .git boundary in
+      // `dir` stops the walk: strict fallback, not an import failure.
+      assert.equal(config.rules['subject-max-length'], undefined);
+      assert.equal(config.rules['type-enum']!.severity, 'error');
+    });
+
+    it('treats an explicit configPath pointing at a directory as not found', async () => {
+      await mkdir(join(dir, 'config-dir'));
+
+      await assert.rejects(
+        () => loadConfig(dir, 'config-dir'),
+        /Config file not found/,
+      );
+    });
+
+    it('explicit configPath bypasses the walk', async () => {
+      await writeFile(join(dir, 'commit-sentinel.config.ts'), configSource(47));
+      const child = join(dir, 'child');
+      await mkdir(child);
+      await writeFile(join(child, 'custom.config.ts'), configSource(48));
+
+      const config = await loadConfig(child, 'custom.config.ts');
+      assert.deepEqual(config.rules['subject-max-length']!.options, { max: 48 });
+    });
+
+    it('missing explicit configPath still throws even when an ancestor has a config', async () => {
+      await writeFile(join(dir, 'commit-sentinel.config.ts'), configSource(49));
+      const child = join(dir, 'child');
+      await mkdir(child);
+
+      await assert.rejects(
+        () => loadConfig(child, 'missing.config.ts'),
+        /Config file not found/,
+      );
     });
   });
 });

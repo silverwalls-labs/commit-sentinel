@@ -811,4 +811,11 @@ describe('CLI run() max-commits range rule (fixture git repo)', () => {
     assert.equal(result.stdout, '');
     assert.match(result.stderr, /Option --base requires a non-empty value\./);
   });
+
+  it('rejects an empty --config value instead of walking for a config', async () => {
+    const result = await run(['--message', 'feat: ok', '--config', '']);
+    assert.equal(result.exitCode, 1);
+    assert.equal(result.stdout, '');
+    assert.match(result.stderr, /Option --config requires a non-empty value\./);
+  });
 });
