@@ -693,13 +693,32 @@ describe('CLI run() --quiet', () => {
   });
 
   it('still explains a --max-warnings failure', async () => {
-    const configPath = await warnConfig();
-    const result = await run([
-      '--message', attribution.claudeFooter, '--config', configPath, '--quiet', '--max-warnings', '0',
-    ]);
-    assert.equal(result.exitCode, 2);
-    assert.equal(result.stdout, '');
-    assert.equal(result.stderr, '✖ Found 1 warning(s), exceeds --max-warnings limit of 0.\n');
+    // The assertion checks exact output, icon included — pin the color env so
+    // an ambient FORCE_COLOR/NO_COLOR cannot ANSI-wrap the ✖ and break it.
+    const savedNoColor = process.env.NO_COLOR;
+    const savedForceColor = process.env.FORCE_COLOR;
+    delete process.env.NO_COLOR;
+    delete process.env.FORCE_COLOR;
+    try {
+      const configPath = await warnConfig();
+      const result = await run([
+        '--message', attribution.claudeFooter, '--config', configPath, '--quiet', '--max-warnings', '0',
+      ]);
+      assert.equal(result.exitCode, 2);
+      assert.equal(result.stdout, '');
+      assert.equal(result.stderr, '✖ Found 1 warning(s), exceeds --max-warnings limit of 0.\n');
+    } finally {
+      if (savedNoColor === undefined) {
+        delete process.env.NO_COLOR;
+      } else {
+        process.env.NO_COLOR = savedNoColor;
+      }
+      if (savedForceColor === undefined) {
+        delete process.env.FORCE_COLOR;
+      } else {
+        process.env.FORCE_COLOR = savedForceColor;
+      }
+    }
   });
 });
 

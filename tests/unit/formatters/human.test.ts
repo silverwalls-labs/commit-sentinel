@@ -573,6 +573,29 @@ describe('detectColor', () => {
     }
   });
 
+  it('treats an empty NO_COLOR as unset (no-color.org: not an empty string)', () => {
+    delete process.env.FORCE_COLOR;
+    process.env.NO_COLOR = '';
+    try {
+      assert.equal(detectColor({ isTTY: true }), true);
+      assert.equal(detectColor({ isTTY: false }), false);
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it('is false when FORCE_COLOR is 0 or false, the ecosystem "off" values', () => {
+    delete process.env.NO_COLOR;
+    try {
+      process.env.FORCE_COLOR = '0';
+      assert.equal(detectColor({ isTTY: true }), false);
+      process.env.FORCE_COLOR = 'false';
+      assert.equal(detectColor({ isTTY: true }), false);
+    } finally {
+      restoreEnv();
+    }
+  });
+
   it('follows the stream TTY status when neither variable is set', () => {
     delete process.env.NO_COLOR;
     delete process.env.FORCE_COLOR;

@@ -14,10 +14,17 @@ import type { Formatter, FormatOptions } from './types.ts';
  *
  * `NO_COLOR` / `FORCE_COLOR` take precedence; otherwise colors are enabled
  * only when the destination stream is a TTY.
+ *
+ * Environment semantics: `NO_COLOR` disables colors when set to any non-empty
+ * value (per no-color.org, an empty string does not count); `FORCE_COLOR`
+ * forces colors on when set to any value except `0`/`false`, the ecosystem
+ * convention for "off" (e.g. chalk's `FORCE_COLOR=0/1/2`).
  */
 export function detectColor(stream: { isTTY?: boolean }): boolean {
-  if (process.env.NO_COLOR !== undefined) return false;
-  if (process.env.FORCE_COLOR !== undefined) return true;
+  if (process.env.NO_COLOR) return false;
+  const forceColor = process.env.FORCE_COLOR;
+  if (forceColor === '0' || forceColor === 'false') return false;
+  if (forceColor !== undefined) return true;
   return stream.isTTY === true;
 }
 
