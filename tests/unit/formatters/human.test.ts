@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
-import { humanFormatter } from '../../../src/formatters/human.ts';
+import { detectColor, formatTooManyWarnings, humanFormatter } from '../../../src/formatters/human.ts';
 import { parseCommit } from '../../../src/parser.ts';
 
 describe('humanFormatter', () => {
@@ -410,5 +410,178 @@ describe('humanFormatter range reports', () => {
       { color: false },
     );
     assert.match(output, /✔ Valid commit range: main\.\.HEAD/);
+  });
+});
+
+describe('humanFormatter quiet mode', () => {
+  it('renders nothing for a valid report', () => {
+    const output = humanFormatter.format(
+      {
+        valid: true,
+        commit: parseCommit('feat: add login'),
+        results: [],
+        errorCount: 0,
+        warningCount: 0,
+        skippedGitRules: [],
+      },
+      { color: false, quiet: true },
+    );
+    assert.equal(output, '');
+  });
+
+  it('renders nothing for a valid report with warnings', () => {
+    const output = humanFormatter.format(
+      {
+        valid: true,
+        commit: parseCommit('feat: Add Login'),
+        results: [
+          {
+            ruleName: 'subject-case',
+            severity: 'warn',
+            problems: [{ message: 'Must start with lowercase.' }],
+          },
+        ],
+        errorCount: 0,
+        warningCount: 1,
+        skippedGitRules: [],
+      },
+      { color: false, quiet: true },
+    );
+    assert.equal(output, '');
+  });
+
+  it('renders nothing for an ignored commit', () => {
+    const output = humanFormatter.format(
+      {
+        valid: true,
+        commit: parseCommit('Revert "feat: add login"'),
+        results: [],
+        errorCount: 0,
+        warningCount: 0,
+        skippedGitRules: [],
+        ignored: true,
+        ignoredBy: 'revert',
+      },
+      { color: false, quiet: true },
+    );
+    assert.equal(output, '');
+  });
+
+  it('renders errors only for a mixed-severity invalid report', () => {
+    const output = humanFormatter.format(
+      {
+        valid: false,
+        commit: parseCommit('bad message'),
+        results: [
+          {
+            ruleName: 'format',
+            severity: 'error',
+            problems: [{ message: 'Bad format.' }],
+          },
+          {
+            ruleName: 'subject-case',
+            severity: 'warn',
+            problems: [{ message: 'Must start with lowercase.' }],
+          },
+        ],
+        errorCount: 1,
+        warningCount: 1,
+        skippedGitRules: [],
+      },
+      { color: false, quiet: true },
+    );
+    assert.match(output, /✖ Invalid commit message/);
+    assert.match(output, /Bad format/);
+    assert.match(output, /1 error\(s\)/);
+    assert.doesNotMatch(output, /⚠/);
+    assert.doesNotMatch(output, /warning/);
+    assert.doesNotMatch(output, /subject-case/);
+  });
+
+  it('omits the skipped git-metadata note', () => {
+    const report = {
+      valid: false,
+      commit: parseCommit('bad message'),
+      results: [
+        {
+          ruleName: 'format',
+          severity: 'error' as const,
+          problems: [{ message: 'Bad format.' }],
+        },
+      ],
+      errorCount: 1,
+      warningCount: 0,
+      skippedGitRules: ['author-email'],
+    };
+    const loud = humanFormatter.format(report, { color: false });
+    assert.match(loud, /Skipped git-metadata rules/);
+
+    const quiet = humanFormatter.format(report, { color: false, quiet: true });
+    assert.doesNotMatch(quiet, /Skipped git-metadata rules/);
+  });
+});
+
+describe('formatTooManyWarnings', () => {
+  it('formats the breach line without color', () => {
+    assert.equal(
+      formatTooManyWarnings(3, 2, false),
+      '✖ Found 3 warning(s), exceeds --max-warnings limit of 2.\n',
+    );
+  });
+
+  it('styles the icon red when color is enabled', () => {
+    const output = formatTooManyWarnings(1, 0, true);
+    assert.ok(output.includes('\u001b[31m✖\u001b[39m'));
+    assert.match(output, /Found 1 warning\(s\), exceeds --max-warnings limit of 0\./);
+  });
+});
+
+describe('detectColor', () => {
+  const savedNoColor = process.env.NO_COLOR;
+  const savedForceColor = process.env.FORCE_COLOR;
+
+  function restoreEnv(): void {
+    if (savedNoColor === undefined) {
+      delete process.env.NO_COLOR;
+    } else {
+      process.env.NO_COLOR = savedNoColor;
+    }
+    if (savedForceColor === undefined) {
+      delete process.env.FORCE_COLOR;
+    } else {
+      process.env.FORCE_COLOR = savedForceColor;
+    }
+  }
+
+  it('is false when NO_COLOR is set, even on a TTY stream', () => {
+    delete process.env.FORCE_COLOR;
+    process.env.NO_COLOR = '1';
+    try {
+      assert.equal(detectColor({ isTTY: true }), false);
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it('is true when FORCE_COLOR is set, even on a non-TTY stream', () => {
+    delete process.env.NO_COLOR;
+    process.env.FORCE_COLOR = '1';
+    try {
+      assert.equal(detectColor({ isTTY: false }), true);
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it('follows the stream TTY status when neither variable is set', () => {
+    delete process.env.NO_COLOR;
+    delete process.env.FORCE_COLOR;
+    try {
+      assert.equal(detectColor({ isTTY: true }), true);
+      assert.equal(detectColor({ isTTY: false }), false);
+      assert.equal(detectColor({}), false);
+    } finally {
+      restoreEnv();
+    }
   });
 });

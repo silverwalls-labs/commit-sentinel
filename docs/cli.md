@@ -13,6 +13,8 @@ Options:
       --config <path>        Path to config file (default: nearest commit-sentinel.config.ts, searching upward)
       --json                 Output results as JSON
       --sarif                Output results as SARIF 2.1.0
+      --max-warnings <n>     Fail with exit 2 when more than <n> warnings are found
+      --quiet                Suppress all non-error output (human format only)
   -h, --help                 Show help
   -v, --version              Show version number
 ```
@@ -40,6 +42,12 @@ echo "fix(api): handle timeout" | commit-sentinel --stdin
 
 # Use a custom config file
 commit-sentinel --message "feat: add login" --config path/to/config.ts
+
+# Enforce a warning budget in CI (exit 2 when exceeded)
+commit-sentinel --range main..HEAD --max-warnings 0
+
+# Errors only: suppress warnings and success output
+commit-sentinel --commit HEAD --quiet
 ```
 
 ## Comment stripping (`--file` / `--stdin`)
@@ -55,19 +63,39 @@ commit-sentinel --message "feat: add login" --config path/to/config.ts
 
 ## Ignored commits
 
-Git-generated messages (merge, revert/reapply, `fixup!`/`squash!`/`amend!`) are ignored by default — validation short-circuits to valid without running any rule. See [configuration.md](./configuration.md#ignoring-auto-generated-commits) for the pattern list and the `defaultIgnores`/`ignores` config fields. Ignored commits exit `0` and are always visible in the output:
+Git-generated messages (merge, revert/reapply, `fixup!`/`squash!`/`amend!`) are ignored by default — validation short-circuits to valid without running any rule. See [configuration.md](./configuration.md#ignoring-auto-generated-commits) for the pattern list and the `defaultIgnores`/`ignores` config fields. Ignored commits exit `0` and are visible in the output — except under [`--quiet`](#quiet-mode---quiet), which suppresses the human notice:
 
 - **Human**: a single informational line — `ℹ Ignored revert commit message: Revert "feat: add login"`.
 - **JSON**: the report carries `ignored: true` and `ignoredBy: "<pattern name>"` (both absent on normal reports).
 - **SARIF**: the commit's run has zero `results` and a run-level `properties` bag — `{ "ignored": true, "ignoredBy": "<pattern name>", "commitSha": "<sha>" }` (`commitSha` in range mode only).
 
+## Warning budget (`--max-warnings <n>`)
+
+`--max-warnings` fails the run with exit `2` when the total warning count exceeds `<n>`, letting CI gate on warnings as well as errors. `--max-warnings 0` fails on any warning; without the flag, warnings never affect the exit code.
+
+- `<n>` must be a non-negative integer — anything else (`-1`, `1.5`, `abc`, an empty value) is a usage error (exit `1`).
+- In `--range`/`--base` mode the budget applies to the **sum** of warnings across every commit plus the range-level report.
+- When the budget is exceeded, human output ends with an explanatory line — `✖ Found 3 warning(s), exceeds --max-warnings limit of 2.` — and goes to stderr, like any other failure.
+- The JSON/SARIF payloads are **unchanged** by a breach (the report still says `valid: true` when there are no errors); the exit code alone signals it.
+- Ignored commits carry zero warnings and never count toward the budget.
+
+## Quiet mode (`--quiet`)
+
+`--quiet` suppresses all non-error output for clean CI logs. It only affects the **human** format — combined with `--json`/`--sarif` it is a no-op, and the structured payloads always stay complete.
+
+- Valid results print nothing, even when warnings are present — including the ignored-commit notice, the skipped-git-rules note, and the empty-range notice.
+- Invalid results print only the error lines and an errors-only summary; warnings are omitted.
+- In range mode, only the invalid commits are shown.
+- A `--max-warnings` breach still prints its explanatory line — the failure is never silent.
+- Usage and configuration errors (exit `1`) are never suppressed.
+
 ## Exit codes
 
 | Code | Meaning |
 |------|---------|
-| `0` | Commit message is valid (warnings may be present) |
-| `1` | CLI usage error or runtime error |
-| `2` | Commit message validation failed |
+| `0` | Commit message is valid (warnings may be present, within any `--max-warnings` limit) |
+| `1` | CLI usage error or runtime error (including an invalid `--max-warnings` value) |
+| `2` | Validation failed — rule errors, or total warnings exceed `--max-warnings` |
 
 ## Output formats
 
