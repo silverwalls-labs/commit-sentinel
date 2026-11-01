@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import { runCli, runNode } from '../helpers/spawn.ts';
 import { gitEnv } from '../helpers/git-env.ts';
 import { commitFileIn, createFixtureRepo } from '../helpers/fixture-repo.ts';
+import { agentWarnConfigSource } from '../fixtures/configs.ts';
 import { INDEX_URL } from '../helpers/index-url.ts';
 
 const execFileAsync = promisify(execFile);
@@ -33,6 +34,45 @@ describe('CLI e2e', () => {
     assert.match(result.stdout, /--message/);
     assert.match(result.stdout, /--range/);
     assert.match(result.stdout, /--base/);
+    assert.match(result.stdout, /--max-warnings/);
+    assert.match(result.stdout, /--quiet/);
+  });
+
+  it('exits 1 for an invalid --max-warnings value', async () => {
+    const result = await runCli(['--message', 'feat: add login', '--max-warnings', 'abc']);
+    assert.equal(result.exitCode, 1);
+    assert.equal(result.stdout, '');
+    assert.match(result.stderr, /Option --max-warnings requires a non-negative integer, got: "abc"\./);
+  });
+
+  it('exits 2 with a threshold line when warnings exceed --max-warnings', async () => {
+    const configPath = join(dir, 'agent-warn.config.ts');
+    await writeFile(configPath, agentWarnConfigSource());
+
+    const message = 'feat: add login\n\nCo-Authored-By: Claude <noreply@anthropic.com>';
+    const result = await runCli(['--message', message, '--config', configPath, '--max-warnings', '0']);
+    assert.equal(result.exitCode, 2);
+    assert.equal(result.stdout, '');
+    assert.match(result.stderr, /Found 1 warning\(s\), exceeds --max-warnings limit of 0\./);
+  });
+
+  it('--quiet prints nothing for a valid message', async () => {
+    const result = await runCli(['--message', 'feat: add login', '--quiet']);
+    assert.equal(result.exitCode, 0);
+    assert.equal(result.stdout, '');
+    assert.equal(result.stderr, '');
+  });
+
+  it('--quiet with --json still prints the full report', async () => {
+    const configPath = join(dir, 'agent-warn.config.ts');
+    await writeFile(configPath, agentWarnConfigSource());
+
+    const message = 'feat: add login\n\nCo-Authored-By: Claude <noreply@anthropic.com>';
+    const result = await runCli(['--message', message, '--config', configPath, '--quiet', '--json']);
+    assert.equal(result.exitCode, 0);
+    const parsed = JSON.parse(result.stdout);
+    assert.equal(parsed.valid, true);
+    assert.equal(parsed.warningCount, 1);
   });
 
   it('exits 0 with --version', async () => {

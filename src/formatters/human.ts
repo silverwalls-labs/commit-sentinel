@@ -9,10 +9,23 @@
 import type { ValidationReport } from '../runner.ts';
 import type { Formatter, FormatOptions } from './types.ts';
 
-function hasColors(): boolean {
-  if (process.env.NO_COLOR !== undefined) return false;
-  if (process.env.FORCE_COLOR !== undefined) return true;
-  return process.stdout.isTTY === true;
+/**
+ * Detect whether ANSI colors should be used for output written to `stream`.
+ *
+ * `NO_COLOR` / `FORCE_COLOR` take precedence; otherwise colors are enabled
+ * only when the destination stream is a TTY.
+ *
+ * Environment semantics: `NO_COLOR` disables colors when set to any non-empty
+ * value (per no-color.org, an empty string does not count); `FORCE_COLOR`
+ * forces colors on when set to any value except `0`/`false`, the ecosystem
+ * convention for "off" (e.g. chalk's `FORCE_COLOR=0/1/2`).
+ */
+export function detectColor(stream: { isTTY?: boolean }): boolean {
+  if (process.env.NO_COLOR) return false;
+  const forceColor = process.env.FORCE_COLOR;
+  if (forceColor === '0' || forceColor === 'false') return false;
+  if (forceColor !== undefined) return true;
+  return stream.isTTY === true;
 }
 
 // ANSI SGR open/close pairs used by the formatter.
@@ -49,7 +62,12 @@ function sanitize(text: string): string {
 /** Default terminal formatter with colored icons and suggestions. */
 export const humanFormatter: Formatter = {
   format(report: ValidationReport, options?: FormatOptions): string {
-    const color = options?.color ?? hasColors();
+    const color = options?.color ?? detectColor(process.stdout);
+    const quiet = options?.quiet ?? false;
+
+    // Quiet renders errors only: anything valid — including ignored commits —
+    // produces no output at all.
+    if (quiet && report.valid) return '';
 
     if (report.ignored) {
       const header = report.commit.header.length > 0 ? sanitize(report.commit.header) : '<empty>';
@@ -93,6 +111,8 @@ export const humanFormatter: Formatter = {
     lines.push('');
 
     for (const result of report.results) {
+      // Quiet renders errors only (warn-severity findings are omitted).
+      if (quiet && result.severity !== 'error') continue;
       const icon = result.severity === 'error'
         ? style('✖', 'red', color)
         : style('⚠', 'yellow', color);
@@ -106,7 +126,8 @@ export const humanFormatter: Formatter = {
       }
     }
 
-    if (report.skippedGitRules.length > 0) {
+    // The skipped-rules note is informational, so quiet drops it too.
+    if (!quiet && report.skippedGitRules.length > 0) {
       lines.push('');
       lines.push(
         style('ℹ', 'blue', color) +
@@ -119,7 +140,7 @@ export const humanFormatter: Formatter = {
     if (report.errorCount > 0) {
       parts.push(style(`${report.errorCount} error(s)`, 'red', color));
     }
-    if (report.warningCount > 0) {
+    if (report.warningCount > 0 && !quiet) {
       parts.push(style(`${report.warningCount} warning(s)`, 'yellow', color));
     }
     lines.push(parts.join(', '));
@@ -127,3 +148,12 @@ export const humanFormatter: Formatter = {
     return lines.join('\n') + '\n';
   },
 };
+
+/**
+ * Human-format line explaining a `--max-warnings` breach. Lives here so its
+ * icon and styling stay consistent with the rest of the human output.
+ */
+export function formatTooManyWarnings(count: number, max: number, color: boolean): string {
+  return style('✖', 'red', color) +
+    ` Found ${count} warning(s), exceeds --max-warnings limit of ${max}.\n`;
+}

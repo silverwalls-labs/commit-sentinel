@@ -92,7 +92,12 @@ jobs:
 
       - name: Audit
         run: |
-          npm audit --audit-level=low
+          # Runtime dependencies only: this package ships zero runtime
+          # dependencies, so --omit=dev still audits everything that ships.
+          # The dev-only typedoc -> minimatch chain is triaged, with a reason
+          # and expiry, in osv-scanner.toml (GHSA-g3hv-75wg-m249 — typedoc
+          # 0.28 is incompatible with the patched minimatch 11.x).
+          npm audit --omit=dev --audit-level=low
 
   lint:
     name: Lint
